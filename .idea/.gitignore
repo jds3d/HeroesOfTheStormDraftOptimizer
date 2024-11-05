@@ -1,0 +1,14 @@
+# Default ignored files
+/shelf/
+/workspace.xml
+
+# Ignore PyCharm project files
+.idea/
+*.iml
+*.xml
+
+# Ignore Python cache and other temporary files
+__pycache__/
+*.pyc
+*.pyo
+*.pyd

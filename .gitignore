@@ -8,3 +8,6 @@ __pycache__/
 *.pyc
 *.pyo
 *.pyd
+
+# Ignore .env file with sensitive data
+.env

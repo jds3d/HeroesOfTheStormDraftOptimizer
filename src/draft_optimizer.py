@@ -1,5 +1,7 @@
 from heroes_profile_api import get_hero_data, get_player_data, get_match_data
 from heroes_profile_api import get_team_data
+import os
+import pickle
 
 def fetch_match_data_for_draft(match_id):
     """Retrieves data for all heroes in a match to help in drafting."""
@@ -31,21 +33,47 @@ def fetch_match_data_for_draft(match_id):
 
 
 def fetch_team_profile(battle_tags):
-    """Retrieves and displays profile data for each team member."""
+    """Retrieves, displays, and saves profile data for each team member as a pickle file."""
     team_data = get_team_data(battle_tags)
 
     if not team_data:
         print("Failed to retrieve team data.")
         return
 
+    # Ensure the ../data directory exists
+    save_dir = "../data"
+    os.makedirs(save_dir, exist_ok=True)
+
     for tag, data in team_data.items():
         print(f"\n--- {tag} ---")
-        for hero in data.get("heroes", []):
-            hero_name = hero.get("name")
-            win_rate = hero.get("win_rate")
-            games_played = hero.get("games_played")
-            print(f"Hero: {hero_name}, Win Rate: {win_rate}%, Games Played: {games_played}")
 
+        # Save each player's data as a pickle file
+        save_path = os.path.join(save_dir, f"{tag.replace('#', '_')}.pkl")
+
+        with open(save_path, "wb") as f:
+            pickle.dump(data, f)
+
+        print(f"Saved {tag}'s data to {save_path}")
+
+        # Check if "Storm League" exists in player's data
+        if "Storm League" not in data:
+            continue
+
+        # Extract heroes with MMR > 2500
+        filtered_heroes = [
+            (hero_name, stats["mmr"], stats["win_rate"], stats["games_played"])
+            for hero_name, stats in data["Storm League"].items()
+            if stats.get("mmr", 0) > 2700
+        ]
+
+        # Sort by MMR in descending order
+        sorted_heroes = sorted(filtered_heroes, key=lambda x: x[1], reverse=True)
+
+        # Print sorted heroes
+        for hero_name, mmr, win_rate, games_played in sorted_heroes:
+            print(f"Hero: {hero_name}, MMR: {mmr:.2f}, Win Rate: {win_rate:.2f}%, Games Played: {games_played}")
+
+    return team_data
 
 
 # # Example usage
@@ -55,5 +83,6 @@ def fetch_team_profile(battle_tags):
 
 if __name__ == "__main__":
     # Replace with the BattleTags of your team members
-    team_battle_tags = ["HuckIt#1830"]#, "Player2#5678", "Player3#9101"]
-    fetch_team_profile(team_battle_tags)
+    team_battle_tags = ["HuckIt#1840", "topgun707#1875", "beachyman#1138", "mrhustler#1686", "mojoe#11242", "papichulo#12352", "grkfreezer#1906", "yarrface#1316", "woot#11617"]
+    team_profile = fetch_team_profile(team_battle_tags)
+

@@ -3,6 +3,7 @@ from heroes_profile_api import get_team_data
 import os
 import pickle
 
+
 def fetch_match_data_for_draft(match_id):
     """Retrieves data for all heroes in a match to help in drafting."""
     match_data = get_match_data(match_id)
@@ -29,12 +30,9 @@ def fetch_match_data_for_draft(match_id):
     }
 
 
-
-
-
-def fetch_team_profile(battle_tags):
+def fetch_team_profile(battle_tags, ngs=False):
     """Retrieves, displays, and saves profile data for each team member as a pickle file."""
-    team_data = get_team_data(battle_tags)
+    team_data = get_team_data(battle_tags, ngs)
 
     if not team_data:
         print("Failed to retrieve team data.")
@@ -56,6 +54,7 @@ def fetch_team_profile(battle_tags):
         print(f"Saved {tag}'s data to {save_path}")
 
         # Check if "Storm League" exists in player's data
+        print(data)
         if "Storm League" not in data:
             continue
 
@@ -83,6 +82,9 @@ def fetch_team_profile(battle_tags):
 
 if __name__ == "__main__":
     # Replace with the BattleTags of your team members
-    team_battle_tags = ["HuckIt#1840", "topgun707#1875", "beachyman#1138", "mrhustler#1686", "mojoe#11242", "papichulo#12352", "grkfreezer#1906", "yarrface#1316", "woot#11617"]
-    team_profile = fetch_team_profile(team_battle_tags)
+    # team_battle_tags = ["HuckIt#1840", "topgun707#1875", "beachyman#1138", "mrhustler#1686", "mojoe#11242", "papichulo#12352", "grkfreezer#1906", "yarrface#1316", "woot#11617"]
+
+    # Fancy Flightless Fowl - https://nexusgamingseries.org/teamProfile/Fancy_Flightless_Fowl
+    team_battle_tags = ["Alfie#1948", "Silverbell#11333", "AngryPanda#12178", "GingiBoi#1791", "XxLuNaTiCxX#11820", "Stefwithanf#1470"]
+    team_profile = fetch_team_profile(team_battle_tags, ngs=True)
 

@@ -1,84 +1,87 @@
-from heroes_profile_api import get_hero_data, get_player_data, get_match_data
-from heroes_profile_api import get_team_data
 import os
 import pickle
+from heroes_profile_api import get_team_data, get_match_data, get_hero_data
+
+DATA_DIR = "../data"
 
 
 def fetch_match_data_for_draft(match_id):
-    """Retrieves data for all heroes in a match to help in drafting."""
+    """Fetches and caches match data for drafting."""
+    cache_file = f"match_{match_id}.pkl"
+    file_path = os.path.join(DATA_DIR, cache_file)
+
+    if os.path.exists(file_path):
+        print(f"Loaded cached match data for {match_id}")
+        return pickle.load(open(file_path, "rb"))
+
     match_data = get_match_data(match_id)
     if not match_data:
-        return
+        return None
 
-    # Extract player and hero information
-    team_heroes = []
-    opponent_heroes = []
+    team_heroes, opponent_heroes = [], []
 
     for player in match_data["players"]:
-        hero_name = player["hero"]
-        hero_data = get_hero_data(hero_name)
+        hero_data = get_hero_data(player["hero"])
+        (team_heroes if player["team"] == "ally" else opponent_heroes).append(hero_data)
 
-        # Classify hero as either team or opponent
-        if player["team"] == "ally":
-            team_heroes.append(hero_data)
-        else:
-            opponent_heroes.append(hero_data)
+    draft_data = {"team_heroes": team_heroes, "opponent_heroes": opponent_heroes}
+    pickle.dump(draft_data, open(file_path, "wb"))
 
-    return {
-        "team_heroes": team_heroes,
-        "opponent_heroes": opponent_heroes
-    }
+    print(f"Saved match data for {match_id}")
+    return draft_data
 
 
-def fetch_team_profile(battle_tags, ngs=False):
-    """Retrieves, displays, and saves profile data for each team member as a pickle file."""
-    team_data = get_team_data(battle_tags, ngs)
+def fetch_team_profile(battle_tags, mmr_threshold=2700):
+    """
+    Fetches and displays each player's:
+    - Top 3 heroes and preferred role from NGS.
+    - Heroes over 2700 MMR in Storm League with win rate and games played.
+    """
+    team_ngs_data = get_team_data(battle_tags, ngs=True)  # NGS data
+    team_sl_data = get_team_data(battle_tags, ngs=False)  # Storm League data
 
-    if not team_data:
+    if not team_ngs_data and not team_sl_data:
         print("Failed to retrieve team data.")
-        return
+        return None
 
-    # Ensure the ../data directory exists
-    save_dir = "../data"
-    os.makedirs(save_dir, exist_ok=True)
-
-    for tag, data in team_data.items():
+    for tag in battle_tags:
         print(f"\n--- {tag} ---")
 
-        # Save each player's data as a pickle file
-        save_path = os.path.join(save_dir, f"{tag.replace('#', '_')}.pkl")
+        # Fetch NGS data
+        ngs_data = team_ngs_data.get(tag, {})
+        top_three_heroes = ngs_data.get("top_three_heroes", [])
+        preferred_role = ngs_data.get("preferred_role", "Unknown")
 
-        with open(save_path, "wb") as f:
-            pickle.dump(data, f)
+        print(f"Preferred Role: {preferred_role}")
+        print(f"Top 3 Heroes: {', '.join(top_three_heroes) if top_three_heroes else 'N/A'}")
 
-        print(f"Saved {tag}'s data to {save_path}")
+        # Fetch Storm League data
+        sl_data = team_sl_data.get(tag, {}).get("Storm League", {})
 
-        # Check if "Storm League" exists in player's data
-        print(data)
-        if "Storm League" not in data:
+        if not sl_data:
+            print("No Storm League data available.")
             continue
 
-        # Extract heroes with MMR > 2500
+        # Extract heroes with MMR > threshold
         filtered_heroes = [
-            (hero_name, stats["mmr"], stats["win_rate"], stats["games_played"])
-            for hero_name, stats in data["Storm League"].items()
-            if stats.get("mmr", 0) > 2700
+            (hero, stats["mmr"], stats["win_rate"], stats["games_played"])
+            for hero, stats in sl_data.items()
+            if stats.get("mmr", 0) > mmr_threshold
         ]
 
         # Sort by MMR in descending order
         sorted_heroes = sorted(filtered_heroes, key=lambda x: x[1], reverse=True)
 
-        # Print sorted heroes
-        for hero_name, mmr, win_rate, games_played in sorted_heroes:
-            print(f"Hero: {hero_name}, MMR: {mmr:.2f}, Win Rate: {win_rate:.2f}%, Games Played: {games_played}")
+        # Display Storm League heroes over threshold
+        if sorted_heroes:
+            print("\nStorm League Heroes (MMR > 2700):")
+            for hero, mmr, win_rate, games_played in sorted_heroes:
+                print(f" - {hero}: MMR: {mmr:.2f}, Win Rate: {win_rate:.2f}%, Games Played: {games_played}")
+        else:
+            print("\nNo heroes over 2700 MMR in Storm League.")
 
-    return team_data
+    return team_ngs_data, team_sl_data
 
-
-# # Example usage
-# match_id = "123456"  # Replace with the actual match ID
-# draft_data = fetch_match_data_for_draft(match_id)
-# print(draft_data)
 
 if __name__ == "__main__":
     # Replace with the BattleTags of your team members
@@ -86,5 +89,4 @@ if __name__ == "__main__":
 
     # Fancy Flightless Fowl - https://nexusgamingseries.org/teamProfile/Fancy_Flightless_Fowl
     team_battle_tags = ["Alfie#1948", "Silverbell#11333", "AngryPanda#12178", "GingiBoi#1791", "XxLuNaTiCxX#11820", "Stefwithanf#1470"]
-    team_profile = fetch_team_profile(team_battle_tags, ngs=True)
-
+    fetch_team_profile(team_battle_tags, mmr_threshold=2700)

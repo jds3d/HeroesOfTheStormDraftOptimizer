@@ -85,29 +85,55 @@ def fetch_api_data(endpoint, params=None, cache=True):
     sys.exit(1)  # Exit the program on failure
 
 
-
-def get_team_data(battle_tags, ngs=False):
-    """Fetches and caches team data, using NGS data if requested."""
+def get_ngs_profile_data(battle_tags):
+    """Fetches and caches NGS profile data for a list of players."""
     team_data = {}
 
     for tag in battle_tags:
-        cache_file = f"{tag.replace('#', '_')}_{'NGS' if ngs else 'Profile'}.pkl"
+        cache_file = f"{tag.replace('#', '_')}_NGS.pkl"
         cached_data = load_from_pickle(cache_file)
 
         if cached_data:
-            print(f"Loaded cached data for {tag}")
+            print(f"Loaded cached NGS profile data for {tag}")
             team_data[tag] = cached_data
             continue
 
-        print(f"Fetching data for {tag} from API...")
-        endpoint = "NGS/Player/Profile" if ngs else "Player/Hero/All"
-        player_data = fetch_api_data(endpoint, {"battletag": tag.replace("#", "%23")})
+        print(f"Fetching NGS profile data for {tag} from API...")
+        player_data = fetch_api_data("NGS/Player/Profile", {"battletag": tag.replace("#", "%23")})
 
         if player_data:
             team_data[tag] = player_data
             save_to_pickle(player_data, cache_file)
 
     return team_data
+
+
+def get_player_hero_data(battle_tags, region=1, game_type="Storm League"):
+    """Fetches and caches hero-specific data for a list of players."""
+    team_data = {}
+
+    for tag in battle_tags:
+        cache_file = f"{tag.replace('#', '_')}_Profile.pkl"
+        cached_data = load_from_pickle(cache_file)
+
+        if cached_data:
+            print(f"Loaded cached hero data for {tag}")
+            team_data[tag] = cached_data
+            continue
+
+        print(f"Fetching hero data for {tag} from API...")
+        player_data = fetch_api_data("Player/Hero/All", {
+            "battletag": tag.replace("#", "%23"),
+            "region": region,   # ✅ Now correctly passing region
+            "game_type": game_type  # ✅ Now correctly passing game_type
+        })
+
+        if player_data:
+            team_data[tag] = player_data
+            save_to_pickle(player_data, cache_file)
+
+    return team_data
+
 
 
 def get_hero_stats(hero_name, game_type="Storm League", region=1):
@@ -161,3 +187,71 @@ def get_heroes_stats(timeframe_type="major", timeframe="2.47", game_type="Storm 
     }
 
     return hero_stats
+
+
+def get_hero_winrates_by_map(timeframe_type, timeframe):
+    """Fetches hero win rates by map from Heroes Profile API."""
+    return fetch_api_data("Heroes/Stats", params={
+        "timeframe_type": timeframe_type,
+        "timeframe": timeframe,
+        "game_type": "Storm League",
+        "group_by_map": "true"
+    })
+
+
+def get_player_hero_mmr(battletag):
+    """Fetches hero-specific MMR data for a given player."""
+    formatted_tag = battletag.replace("#", "%23")
+    return fetch_api_data("Player/Hero/All", params={
+        "battletag": formatted_tag,
+        "region": "1",
+        "game_type": "Storm League"
+    })
+
+
+def get_hero_matchup_data(hero, timeframe_type, timeframe):
+    """Fetches matchup data for a specific hero."""
+    return fetch_api_data("Heroes/Matchups", params={
+        "timeframe_type": timeframe_type,
+        "timeframe": timeframe,
+        "game_type": "Storm League",
+        "hero": hero
+    })
+
+
+def fetch_match_data_for_draft(match_id):
+    """Fetches and caches match data for drafting."""
+    cache_file = f"match_{match_id}.pkl"
+    file_path = os.path.join(DATA_DIR, cache_file)
+
+    if os.path.exists(file_path):
+        print(f"Loaded cached match data for {match_id}")
+        return pickle.load(open(file_path, "rb"))
+
+    match_data = fetch_api_data(f"matches/{match_id}")
+
+    if not match_data:
+        return None
+
+    save_to_pickle(match_data, cache_file)
+    return match_data
+
+
+def get_heroes_list():
+    """Fetches the complete list of heroes from the API."""
+    heroes_list_response = fetch_api_data("Heroes")
+
+    if not heroes_list_response:
+        raise ValueError("❌ Error: Failed to retrieve hero list from API.")
+
+    return heroes_list_response
+
+
+def get_hero_roles():
+    """Fetches hero roles from the Heroes Profile API."""
+    hero_roles_response = fetch_api_data("Heroes")
+
+    if not hero_roles_response:
+        raise ValueError("❌ Error: Failed to retrieve hero roles from API.")
+
+    return {hero: hero_roles_response[hero]["new_role"] for hero in hero_roles_response}

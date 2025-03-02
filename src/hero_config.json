@@ -1,7 +1,8 @@
 {
   "additional_hero_roles": {
     "Uther": ["Tank", "Healer"],
-    "Varian": ["Tank", "Melee Assassin"]
+    "Varian": ["Tank", "Melee Assassin"],
+    "The Lost Vikings": ["Offlaner"]
   },
   "forbidden_heroes": ["Cho", "Gall"],
   "required_roles": ["Tank", "Healer", "Offlaner"]

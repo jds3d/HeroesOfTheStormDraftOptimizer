@@ -328,7 +328,8 @@ if __name__ == "__main__":
     #     print("Invalid input. Please enter 1 or 2.")
 
     # Run the draft
-    draft_log = draft(our_team_tags, enemy_team_tags, our_team_name, enemy_team_name, first_pick_team, map_name, timeframe="2.55")
+    ## TODO: Make this use 2.55.
+    draft_log = draft(our_team_tags, enemy_team_tags, our_team_name, enemy_team_name, first_pick_team, map_name, timeframe="2.47")
 
     # Print final draft results
     # print("\nFinal Draft Results:")

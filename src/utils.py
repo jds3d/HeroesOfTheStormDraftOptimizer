@@ -3,6 +3,7 @@ import pickle
 import requests
 import json
 from dotenv import load_dotenv
+import sys
 
 # Load environment variables
 load_dotenv()
@@ -30,9 +31,30 @@ def load_from_pickle(filename):
     return None
 
 
-import sys
+def load_hero_config(config_file="hero_config.json"):
+    """Loads hero role configuration from a JSON file."""
+    if not os.path.exists(config_file):
+        raise FileNotFoundError(f"❌ Error: Hero configuration file '{config_file}' not found.")
 
-import sys
+    with open(config_file, "r") as file:
+        hero_config = json.load(file)
+
+    return hero_config
+
+
+def get_hero_roles():
+    hero_roles_response = fetch_api_data("Heroes")
+    if not hero_roles_response:
+        raise ValueError("❌ Error: Failed to retrieve hero roles from API.")
+    # Base roles from API
+    api_roles = {hero: [hero_roles_response[hero]["new_role"]] for hero in hero_roles_response}
+    hero_config = load_hero_config()
+    additional_roles = hero_config.get("additional_hero_roles", {})
+    # Override API roles with additional roles from the config
+    for hero, roles in additional_roles.items():
+        api_roles[hero] = roles
+    return api_roles
+
 
 def fetch_api_data(endpoint, params=None, cache=True):
     """
@@ -219,6 +241,22 @@ def get_hero_matchup_data(hero, timeframe_type, timeframe):
     })
 
 
+def calculate_matchup_advantage(hero, hero_matchup_data, ally_picked_heroes, enemy_picked_heroes):
+    """Calculates the matchup advantage for a hero based on ally and enemy picks."""
+
+    ally_synergy = sum(
+        float(hero_matchup_data.get(hero, {}).get(ally_hero, {}).get("ally", {}).get("win_rate_as_ally", 50)) - 50
+        for ally_hero in ally_picked_heroes if ally_hero in hero_matchup_data.get(hero, {})
+    )
+
+    enemy_counter = sum(
+        float(hero_matchup_data.get(hero, {}).get(enemy_hero, {}).get("enemy", {}).get("win_rate_against", 50)) - 50
+        for enemy_hero in enemy_picked_heroes if enemy_hero in hero_matchup_data.get(hero, {})
+    )
+
+    return ally_synergy + enemy_counter  # ✅ Combined synergy & counter advantage
+
+
 def fetch_match_data_for_draft(match_id):
     """Fetches and caches match data for drafting."""
     cache_file = f"match_{match_id}.pkl"
@@ -247,11 +285,21 @@ def get_heroes_list():
     return heroes_list_response
 
 
-def get_hero_roles():
-    """Fetches hero roles from the Heroes Profile API."""
-    hero_roles_response = fetch_api_data("Heroes")
-
-    if not hero_roles_response:
-        raise ValueError("❌ Error: Failed to retrieve hero roles from API.")
-
-    return {hero: hero_roles_response[hero]["new_role"] for hero in hero_roles_response}
+def print_final_teams(draft_data):
+    print("\nFinal Team Compositions:")
+    for team_name, team_picked_heroes in [(draft_data["team_1_name"], draft_data["team_1_picked_heroes"]),
+                                           (draft_data["team_2_name"], draft_data["team_2_picked_heroes"])]:
+        print(f"\n{team_name}:")
+        team_roles = {"Tank": 0, "Healer": 0, "Offlaner": 0}
+        for player, hero in team_picked_heroes.items():
+            roles = draft_data["hero_roles"].get(hero, ["Unknown"])
+            if isinstance(roles, str):
+                roles = [roles]
+            role_display = "/".join(roles)
+            for role in roles:
+                if role in team_roles:
+                    team_roles[role] += 1
+            print(f"  {player}: {hero} ({role_display})")
+        missing_roles = [role for role in ["Tank", "Healer", "Offlaner"] if team_roles[role] == 0]
+        if missing_roles:
+            print(f"⚠️ WARNING: {team_name} is missing {'/'.join(missing_roles)}!")

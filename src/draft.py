@@ -17,15 +17,27 @@ DRAFT_ORDER = [
 
 FIRST_PICK_SLOTS = {1, 3, 5, 8, 9, 10, 14, 15}
 
+DRAFT_DATA = {}
+
 
 def initialize_draft(our_team_tags, enemy_team_tags, our_team_name, enemy_team_name, first_pick_team, map_name, timeframe_type, timeframe):
-    """Loads draft data and initializes tracking variables."""
+    """Loads all draft data into a global variable for efficiency."""
+
+    global DRAFT_DATA
 
     draft_data = load_data.load_draft_data(our_team_tags, enemy_team_tags, first_pick_team, map_name, timeframe_type, timeframe)
 
-    hero_config = utils.load_hero_config()  # ✅ Now calling from utils
+    hero_config = utils.load_hero_config()
+    api_roles = utils.get_hero_roles()  # Load hero roles from API once
 
-    return {
+    # Merge API roles with additional roles from config
+    for hero, roles in hero_config.get("additional_hero_roles", {}).items():
+        api_roles[hero] = roles  # Override/add roles from config
+
+    required_roles = set(hero_config.get("required_roles", []))  # Load required roles from config
+
+    # Populate global DRAFT_DATA
+    DRAFT_DATA.update({
         "map_name": map_name,
         "team_1": draft_data["team_1"],
         "team_2": draft_data["team_2"],
@@ -44,170 +56,116 @@ def initialize_draft(our_team_tags, enemy_team_tags, our_team_name, enemy_team_n
         "picked_heroes": set(),
         "team_1_picked_heroes": {},
         "team_2_picked_heroes": {},
-        "hero_roles": utils.get_hero_roles()  # ✅ Now calling from utils
-    }
+        "hero_roles": api_roles,  # Store merged hero roles globally
+        "forbidden_heroes": set(hero_config.get("forbidden_heroes", [])),  # Store forbidden heroes globally
+        "required_roles": required_roles,  # Store required roles dynamically
+        "team_roles": {
+            our_team_name if first_pick_team == 1 else enemy_team_name: {role: 0 for role in required_roles},
+            enemy_team_name if first_pick_team == 1 else our_team_name: {role: 0 for role in required_roles}
+        }
+    })
 
 
-def select_best_pair_pick_with_reason(available_players, player_mmr_data, available_heroes, picked_heroes, banned_heroes,
-                                        hero_winrates_by_map, hero_matchup_data, map_name, ally_picked_heroes, enemy_picked_heroes,
-                                        team_roles, hero_config, enemy_has_offlaner):
-    best_pair = None
-    best_score = -float('inf')
-    additional_roles = hero_config.get("additional_hero_roles", {})
-    dependency_data = hero_config.get("hero_dependencies", {})
-    players_list = list(available_players)
-    n = len(players_list)
-    # Iterate over all unordered pairs of distinct players
-    for i in range(n):
-        for j in range(i+1, n):
-            player1 = players_list[i]
-            player2 = players_list[j]
-            # Iterate over candidate heroes for each player
-            for hero1, stats1 in player_mmr_data.get(player1, {}).get("Storm League", {}).items():
-                if hero1 not in available_heroes or hero1 in picked_heroes or hero1 in banned_heroes:
-                    continue
-                for hero2, stats2 in player_mmr_data.get(player2, {}).get("Storm League", {}).items():
-                    if hero2 not in available_heroes or hero2 in picked_heroes or hero2 in banned_heroes:
-                        continue
-                    # Enforce dependency constraints:
-                    valid = True
-                    if hero1 in dependency_data:
-                        # hero1 requires its dependency to be hero2
-                        if hero2 not in dependency_data[hero1]:
-                            valid = False
-                    if hero2 in dependency_data:
-                        # hero2 requires its dependency to be hero1
-                        if hero1 not in dependency_data[hero2]:
-                            valid = False
-                    if not valid:
-                        continue
-                    # Compute individual scores
-                    hero1_mmr = round(stats1.get("mmr", 2000), 2)
-                    map_bonus1 = round(hero_winrates_by_map.get(map_name, {}).get(hero1, {}).get("win_rate", 50) - 50, 2)
-                    role1 = additional_roles.get(hero1, "Unknown")
-                    matchup_advantage1 = round(utils.calculate_matchup_advantage(hero1, hero_matchup_data, ally_picked_heroes, enemy_picked_heroes), 2)
-                    score1 = hero1_mmr + (map_bonus1 * 10) + matchup_advantage1
+def select_best_pick_with_reason(available_players, team_name):
+    """Selects the best hero pick using global draft data, ensuring required roles are filled when necessary."""
 
-                    hero2_mmr = round(stats2.get("mmr", 2000), 2)
-                    map_bonus2 = round(hero_winrates_by_map.get(map_name, {}).get(hero2, {}).get("win_rate", 50) - 50, 2)
-                    role2 = additional_roles.get(hero2, "Unknown")
-                    matchup_advantage2 = round(utils.calculate_matchup_advantage(hero2, hero_matchup_data, ally_picked_heroes, enemy_picked_heroes), 2)
-                    score2 = hero2_mmr + (map_bonus2 * 10) + matchup_advantage2
+    global DRAFT_DATA
 
-                    total_score = score1 + score2
-                    if total_score > best_score:
-                        best_score = total_score
-                        reason1 = f"MMR {hero1_mmr:.2f}, Map Bonus {map_bonus1:+.2f}%, Matchup Advantage {matchup_advantage1:+.2f}, Role: {role1}"
-                        reason2 = f"MMR {hero2_mmr:.2f}, Map Bonus {map_bonus2:+.2f}%, Matchup Advantage {matchup_advantage2:+.2f}, Role: {role2}"
-                        best_pair = [(player1, hero1, reason1), (player2, hero2, reason2)]
-    if best_pair is not None:
-        available_players.remove(best_pair[0][0])
-        available_players.remove(best_pair[1][0])
-    return best_pair, available_players, available_heroes, picked_heroes, team_roles
+    required_roles = DRAFT_DATA["required_roles"]
+    already_picked = len(DRAFT_DATA["team_1_picked_heroes"]) if team_name == DRAFT_DATA["team_1_name"] else len(DRAFT_DATA["team_2_picked_heroes"])
+    remaining_picks = 5 - already_picked  # Calculate dynamically
 
+    missing_roles = {r for r in required_roles if DRAFT_DATA["team_roles"][team_name].get(r, 0) == 0}
 
-def select_best_pick_with_reason(available_players, player_mmr_data, available_heroes, picked_heroes, banned_heroes, hero_winrates_by_map, hero_matchup_data, map_name, ally_picked_heroes, enemy_picked_heroes, remaining_picks, team_roles, hero_config, enemy_has_offlaner):
-    best_pick = None
-    best_player = None
-    best_score = -1
-    best_reason = ""
-    additional_roles = hero_config.get("additional_hero_roles", {})
-    forbidden_heroes = set(hero_config.get("forbidden_heroes", []))
+    # **Use correct player MMR data based on the drafting team**
+    player_mmr_data = DRAFT_DATA["friendly_player_mmr_data"] if team_name == DRAFT_DATA["team_1_name"] else DRAFT_DATA["enemy_player_mmr_data"]
+
+    candidates = []
+
     for player in available_players:
         for hero, stats in player_mmr_data.get(player, {}).get("Storm League", {}).items():
-            if hero in forbidden_heroes:
+            if hero in DRAFT_DATA["forbidden_heroes"] or hero not in DRAFT_DATA["available_heroes"] or hero in DRAFT_DATA["picked_heroes"] or hero in DRAFT_DATA["banned_heroes"]:
                 continue
-            if hero not in available_heroes or hero in picked_heroes or hero in banned_heroes:
-                continue
+
             hero_mmr = round(stats.get("mmr", 2000), 2)
-            map_bonus = round(hero_winrates_by_map.get(map_name, {}).get(hero, {}).get("win_rate", 50) - 50, 2)
-            role = additional_roles.get(hero, "Unknown")
-            matchup_advantage = round(utils.calculate_matchup_advantage(hero, hero_matchup_data, ally_picked_heroes, enemy_picked_heroes), 2)
+            map_bonus = round(DRAFT_DATA["hero_winrates_by_map"].get(DRAFT_DATA["map_name"], {}).get(hero, {}).get("win_rate", 50) - 50, 2)
+
+            role_list = DRAFT_DATA["hero_roles"].get(hero, ["Unknown"])
+            if not isinstance(role_list, list):
+                role_list = [role_list]
+            role = "Offlaner" if "Bruiser" in role_list else role_list[0]
+
+            matchup_advantage = round(utils.calculate_matchup_advantage(hero, DRAFT_DATA["hero_matchup_data"],
+                                                                        set(DRAFT_DATA["team_1_picked_heroes"].values()), set(DRAFT_DATA["team_2_picked_heroes"].values())), 2)
+
             score = hero_mmr + (map_bonus * 10) + matchup_advantage
-            if score > best_score:
-                best_score = score
-                best_pick = hero
-                best_player = player
-                best_reason = f"MMR {hero_mmr:.2f}, Map Bonus {map_bonus:+.2f}%, Matchup Advantage {matchup_advantage:+.2f}, Role: {role}"
-    if best_player in available_players:
-        available_players.remove(best_player)
-    return [(best_player, best_pick, best_reason)], available_players, available_heroes, picked_heroes, team_roles
+            reason = f"Score: {score:.2f}, MMR {hero_mmr:.2f}, Map Bonus {map_bonus:+.2f}%, Matchup Advantage {matchup_advantage:+.2f}, Role: {role}"
+            candidates.append((score, player, hero, reason, role))
+
+    # **Throw a clear error if no valid heroes exist**
+    if not candidates:
+        raise ValueError(f"❌ ERROR: No valid picks available for {team_name}. "
+                         f"Available Players: {available_players}, "
+                         f"Available Heroes: {DRAFT_DATA['available_heroes']}, "
+                         f"Picked Heroes: {DRAFT_DATA['picked_heroes']}, "
+                         f"Banned Heroes: {DRAFT_DATA['banned_heroes']}")
+
+    # **Only enforce missing roles if the number of picks matches the number of missing roles**
+    enforce_roles = len(missing_roles) == remaining_picks
+    filtered_candidates = [cand for cand in candidates if cand[4] in missing_roles] if enforce_roles else candidates
+
+    # **Ensure `max()` always has a valid input**
+    best_candidate = max(filtered_candidates if filtered_candidates else candidates, key=lambda x: x[0])
+
+    best_player = best_candidate[1]
+    best_pick = best_candidate[2]
+    best_score = best_candidate[0]
+    best_reason = best_candidate[3]
+
+    available_players.remove(best_player)
+
+    if best_candidate[4] in required_roles:
+        DRAFT_DATA["team_roles"][team_name][best_candidate[4]] += 1  # Ensure role count updates properly
+
+    return [(best_player, best_pick, best_score, best_reason)]
 
 
-def execute_draft_phase(draft_data):
-    print(f"\nDraft for {draft_data['team_1_name']} vs {draft_data['team_2_name']}\n")
-    print(f"{'Order':<6}\t{'Type':<6}\t{'Team':<25}\t{'Player':<20}\t{'Hero':<15}\t{'Reason'}")
-    print("=" * 180)
-    remaining_picks = sum(1 for pick in DRAFT_ORDER if pick[0] == "Pick")
-    hero_config = utils.load_hero_config()
-    team_roles = {draft_data["team_1_name"]: {"Tank": 0, "Healer": 0, "Offlaner": 0, "Assassin": 0},
-                  draft_data["team_2_name"]: {"Tank": 0, "Healer": 0, "Offlaner": 0, "Assassin": 0}}
-    enemy_has_offlaner = False
-    pair_starts = {6, 8, 12, 14}
-    i = 0
-    while i < len(DRAFT_ORDER):
-        draft_type, order = DRAFT_ORDER[i]
-        team_name = draft_data["team_1_name"] if order in FIRST_PICK_SLOTS else draft_data["team_2_name"]
-        enemy_team = draft_data["team_2_name"] if team_name == draft_data["team_1_name"] else draft_data["team_1_name"]
-        team_tags = draft_data["available_players_team_1"] if team_name == draft_data["team_1_name"] else draft_data["available_players_team_2"]
-        ally = set(draft_data["team_1_picked_heroes"].values()) if team_name == draft_data["team_1_name"] else set(draft_data["team_2_picked_heroes"].values())
-        enemy = set(draft_data["team_2_picked_heroes"].values()) if team_name == draft_data["team_1_name"] else set(draft_data["team_1_picked_heroes"].values())
-        if team_roles[enemy_team]["Offlaner"] > 0:
-            enemy_has_offlaner = True
+def execute_draft_phase():
+    """Executes the draft process, ensuring bans and picks are handled correctly."""
+
+    global DRAFT_DATA
+
+    print(f"\nDraft for {DRAFT_DATA['team_1_name']} vs {DRAFT_DATA['team_2_name']}\n")
+    print(f"{'Order':<6}\t{'Type':<6}\t{'Team':<25}\t{'Player':<20}\t{'Hero':<15}\t{'Score':<10}\t{'Reason'}")
+    print("=" * 200)
+
+    for draft_type, order in DRAFT_ORDER:
+        team_name = DRAFT_DATA["team_1_name"] if order in FIRST_PICK_SLOTS else DRAFT_DATA["team_2_name"]
+        team_tags = DRAFT_DATA["available_players_team_1"] if team_name == DRAFT_DATA["team_1_name"] else DRAFT_DATA["available_players_team_2"]
+
+        already_picked = len(DRAFT_DATA["team_1_picked_heroes"]) if team_name == DRAFT_DATA["team_1_name"] else len(DRAFT_DATA["team_2_picked_heroes"])
+        remaining_picks = 5 - already_picked  # Calculate dynamically
+
         if draft_type == "Ban":
-            enemy_mmr = draft_data["enemy_player_mmr_data"] if team_name == draft_data["team_1_name"] else draft_data["friendly_player_mmr_data"]
-            ban, reason, draft_data["banned_heroes"], draft_data["available_heroes"] = select_best_ban_with_reason(
-                enemy_mmr, draft_data["hero_winrates_by_map"], draft_data["hero_matchup_data"],
-                draft_data["banned_heroes"], draft_data["available_heroes"], draft_data["enemy_team_data"],
-                draft_data["map_name"], ally, enemy
-            )
-            draft_data["draft_log"].append((order, "Ban", team_name, ban, reason))
-            print(f"{order:<6}\tBan   \t{team_name:<25}\t{'-':<20}\t{ban:<15}\t{reason}")
-            i += 1
-        elif draft_type == "Pick":
-            # Check if this order starts a paired pick round
-            if order in pair_starts:
-                pair_picks, team_tags, draft_data["available_heroes"], draft_data["picked_heroes"], team_roles[team_name] = \
-                    select_best_pair_pick_with_reason(team_tags,
-                        draft_data["friendly_player_mmr_data"] if team_name == draft_data["team_1_name"] else draft_data["enemy_player_mmr_data"],
-                        draft_data["available_heroes"], draft_data["picked_heroes"], draft_data["banned_heroes"],
-                        draft_data["hero_winrates_by_map"], draft_data["hero_matchup_data"], draft_data["map_name"],
-                        ally, enemy, team_roles[team_name], hero_config, enemy_has_offlaner)
-                if pair_picks is not None:
-                    for pick in pair_picks:
-                        p_order = DRAFT_ORDER[i][1]  # use the current order for this pick
-                        draft_data["draft_log"].append((p_order, "Pick", team_name, pick[0], pick[1], pick[2]))
-                        if team_name == draft_data["team_1_name"]:
-                            draft_data["team_1_picked_heroes"][pick[0]] = pick[1]  # store only the hero name
-                        else:
-                            draft_data["team_2_picked_heroes"][pick[0]] = pick[1]
-                        print(f"{p_order:<6}\tPick  \t{team_name:<25}\t{pick[0]:<20}\t{pick[1]:<15}\t{pick[2]}")
-                        i += 1  # increment for each pick in the pair
-                else:
-                    i += 1
-            else:
-                # Normal single pick round
-                picks, team_tags, draft_data["available_heroes"], draft_data["picked_heroes"], team_roles[team_name] = \
-                    select_best_pick_with_reason(team_tags,
-                        draft_data["friendly_player_mmr_data"] if team_name == draft_data["team_1_name"] else draft_data["enemy_player_mmr_data"],
-                        draft_data["available_heroes"], draft_data["picked_heroes"], draft_data["banned_heroes"],
-                        draft_data["hero_winrates_by_map"], draft_data["hero_matchup_data"], draft_data["map_name"],
-                        ally, enemy, remaining_picks, team_roles[team_name], hero_config, enemy_has_offlaner)
-                remaining_picks -= len(picks)
-                for player, pick, pr in picks:
-                    if pick in draft_data["picked_heroes"]:
-                        continue
-                    draft_data["picked_heroes"].add(pick)
-                    if team_name == draft_data["team_1_name"]:
-                        draft_data["team_1_picked_heroes"][player] = pick
-                    else:
-                        draft_data["team_2_picked_heroes"][player] = pick
-                    draft_data["draft_log"].append((order, "Pick", team_name, player, pick, pr))
-                    print(f"{order:<6}\tPick  \t{team_name:<25}\t{player:<20}\t{pick:<15}\t{pr}")
-                i += 1
-        else:
-            i += 1
+            # **Call ban selection function**
+            ban, score, reason = select_best_ban_with_reason()
 
+            # **Save the ban**
+            DRAFT_DATA["draft_log"].append((order, "Ban", team_name, ban, score, reason))
+            print(f"{order:<6}\tBan   \t{team_name:<25}\t{'-':<20}\t{ban:<15}\t{score:<10.2f}\t{reason}")
+
+        elif draft_type == "Pick":
+            picks = select_best_pick_with_reason(team_tags, team_name)
+            for player, pick, score, reason in picks:
+                if pick in DRAFT_DATA["picked_heroes"]:
+                    continue
+                DRAFT_DATA["picked_heroes"].add(pick)
+                if team_name == DRAFT_DATA["team_1_name"]:
+                    DRAFT_DATA["team_1_picked_heroes"][player] = pick
+                else:
+                    DRAFT_DATA["team_2_picked_heroes"][player] = pick
+                DRAFT_DATA["draft_log"].append((order, "Pick", team_name, player, pick, score, reason))
+                print(f"{order:<6}\tPick  \t{team_name:<25}\t{player:<20}\t{pick:<15}\t{score:<10.2f}\t{reason}")
 
 
 def get_enemy_top_mmr_drop(hero, enemy_player_mmr_data, picked_players):
@@ -244,14 +202,27 @@ def get_enemy_top_mmr_drop(hero, enemy_player_mmr_data, picked_players):
     return best_player, best_mmr, mmr_drop
 
 
-def select_best_ban_with_reason(enemy_player_mmr_data, hero_winrates_by_map, hero_matchup_data, banned_heroes, available_heroes, enemy_team_data, map_name, ally_picked_heroes,
-                                enemy_picked_heroes):
-    """Selects the best hero to ban and formats numeric values correctly at their source."""
+def select_best_ban_with_reason():
+    """Selects the best hero to ban based on global draft data and returns the ban, its score, and reason."""
+
+    global DRAFT_DATA
+
     best_ban = None
     best_score = -1
     best_reason = ""
 
-    for player, heroes in enemy_player_mmr_data.items():
+    enemy_mmr_data = DRAFT_DATA["enemy_player_mmr_data"]
+    hero_winrates_by_map = DRAFT_DATA["hero_winrates_by_map"]
+    hero_matchup_data = DRAFT_DATA["hero_matchup_data"]
+    banned_heroes = DRAFT_DATA["banned_heroes"]
+    available_heroes = DRAFT_DATA["available_heroes"]
+    enemy_team_data = DRAFT_DATA["enemy_team_data"]
+    map_name = DRAFT_DATA["map_name"]
+
+    ally_picked_heroes = set(DRAFT_DATA["team_1_picked_heroes"].values())
+    enemy_picked_heroes = set(DRAFT_DATA["team_2_picked_heroes"].values())
+
+    for player, heroes in enemy_mmr_data.items():
         if "Storm League" not in heroes:
             continue  # Skip players without Storm League data
 
@@ -259,37 +230,42 @@ def select_best_ban_with_reason(enemy_player_mmr_data, hero_winrates_by_map, her
             if hero in banned_heroes or hero not in available_heroes:
                 continue  # Skip already banned or unavailable heroes
 
-            hero_mmr = round(stats.get("mmr", 2000), 2)  # ✅ Round before storing
+            hero_mmr = round(stats.get("mmr", 2000), 2)
             map_bonus = round(hero_winrates_by_map.get(map_name, {}).get(hero, {}).get("win_rate", 50) - 50, 2)
             matchup_advantage = round(utils.calculate_matchup_advantage(hero, hero_matchup_data, ally_picked_heroes, enemy_picked_heroes), 2)
-            top_player, top_mmr, mmr_drop = get_enemy_top_mmr_drop(hero, enemy_player_mmr_data, enemy_picked_heroes)
+            top_player, top_mmr, mmr_drop = get_enemy_top_mmr_drop(hero, enemy_mmr_data, enemy_picked_heroes)
 
+            # **Compute ban score**
             score = hero_mmr + (map_bonus * 10) + matchup_advantage + (mmr_drop * 2)
 
             if score > best_score:
                 best_score = score
                 best_ban = hero
-                best_reason = f"MMR {hero_mmr}, Map Bonus {map_bonus:+.2f}%, Matchup Advantage {matchup_advantage:+.2f}, {top_player} forced to drop {round(mmr_drop, 2)} MMR"
+                best_reason = f"Score: {score:.2f}, MMR {hero_mmr}, Map Bonus {map_bonus:+.2f}%, Matchup Advantage {matchup_advantage:+.2f}, {top_player} forced to drop {round(mmr_drop, 2)} MMR"
 
     if not best_ban:
         raise ValueError("❌ No valid hero found for banning! Debug the enemy hero data and ban logic.")
 
-    banned_heroes.add(best_ban)
-    available_heroes.discard(best_ban)
+    # **Save the ban in DRAFT_DATA**
+    DRAFT_DATA["banned_heroes"].add(best_ban)
+    DRAFT_DATA["available_heroes"].discard(best_ban)
 
-    return best_ban, best_reason, banned_heroes, available_heroes
+    return best_ban, best_score, best_reason
+
+
 
 
 def draft(our_team_tags, enemy_team_tags, our_team_name, enemy_team_name, first_pick_team, map_name,
           timeframe_type="major", timeframe="2.47"):
     """Runs the draft process, predicting bans and picks intelligently."""
 
-    draft_data = initialize_draft(our_team_tags, enemy_team_tags, our_team_name, enemy_team_name, first_pick_team, map_name, timeframe_type, timeframe)
-    execute_draft_phase(draft_data)
-    utils.print_final_teams(draft_data)
+    initialize_draft(our_team_tags, enemy_team_tags, our_team_name, enemy_team_name, first_pick_team, map_name, timeframe_type, timeframe)
+    execute_draft_phase()
+    utils.print_final_teams(DRAFT_DATA)  # Use DRAFT_DATA instead of draft_data
 
-    utils.save_to_pickle(draft_data["draft_log"], f"draft_{map_name}.pkl")
-    return draft_data["draft_log"]
+    utils.save_to_pickle(DRAFT_DATA["draft_log"], f"draft_{map_name}.pkl")
+    return DRAFT_DATA["draft_log"]
+
 
 
 if __name__ == "__main__":

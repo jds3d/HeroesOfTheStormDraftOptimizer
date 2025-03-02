@@ -286,20 +286,31 @@ def get_heroes_list():
 
 
 def print_final_teams(draft_data):
+    """Prints final team compositions and warns if essential roles are missing."""
+
+    if draft_data is None:
+        raise ValueError("❌ ERROR: draft_data is None. Ensure draft initialization is successful.")
+
     print("\nFinal Team Compositions:")
     for team_name, team_picked_heroes in [(draft_data["team_1_name"], draft_data["team_1_picked_heroes"]),
-                                           (draft_data["team_2_name"], draft_data["team_2_picked_heroes"])]:
+                                          (draft_data["team_2_name"], draft_data["team_2_picked_heroes"])]:
         print(f"\n{team_name}:")
-        team_roles = {"Tank": 0, "Healer": 0, "Offlaner": 0}
+        team_roles = {role: 0 for role in draft_data["required_roles"]}
+
         for player, hero in team_picked_heroes.items():
             roles = draft_data["hero_roles"].get(hero, ["Unknown"])
             if isinstance(roles, str):
                 roles = [roles]
+
+            # **Convert Bruiser → Offlaner**
+            roles = ["Offlaner" if r == "Bruiser" else r for r in roles]
+
             role_display = "/".join(roles)
             for role in roles:
                 if role in team_roles:
                     team_roles[role] += 1
             print(f"  {player}: {hero} ({role_display})")
-        missing_roles = [role for role in ["Tank", "Healer", "Offlaner"] if team_roles[role] == 0]
+
+        missing_roles = [role for role in draft_data["required_roles"] if team_roles[role] == 0]
         if missing_roles:
             print(f"⚠️ WARNING: {team_name} is missing {'/'.join(missing_roles)}!")

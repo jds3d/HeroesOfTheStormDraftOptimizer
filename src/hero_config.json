@@ -1,16 +1,8 @@
 {
   "additional_hero_roles": {
     "Uther": ["Tank", "Healer"],
-    "Varian": ["Tank", "Melee Assassin"],
-    "Dehaka": ["Bruiser", "Offlaner"],
-    "Blaze": ["Bruiser", "Offlaner"],
-    "Hogger": ["Bruiser", "Offlaner"],
-    "Leoric": ["Bruiser", "Offlaner"],
-    "Ragnaros": ["Bruiser", "Offlaner"],
-    "Gall": ["Support"]
+    "Varian": ["Tank", "Melee Assassin"]
   },
-  "hero_dependencies": {
-    "Cho": ["Gall"]
-  },
-  "forbidden_heroes": ["Cho", "Gall"]
+  "forbidden_heroes": ["Cho", "Gall"],
+  "required_roles": ["Tank", "Healer", "Offlaner"]
 }

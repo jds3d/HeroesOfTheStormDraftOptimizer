@@ -1,8 +1,11 @@
 {
   "additional_hero_roles": {
+    "Illidan": ["Offlaner"],
+    "Maiev": ["Offlaner"],
+    "Qhira": ["Offlaner"],
+    "The Lost Vikings": ["Offlaner"],
     "Uther": ["Tank", "Healer"],
-    "Varian": ["Tank", "Melee Assassin"],
-    "The Lost Vikings": ["Offlaner"]
+    "Varian": ["Tank", "Melee Assassin"]
   },
   "forbidden_heroes": ["Cho", "Gall"],
   "required_roles": ["Tank", "Healer", "Offlaner"]

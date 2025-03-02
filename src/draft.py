@@ -135,16 +135,14 @@ def execute_draft_phase():
 
     global DRAFT_DATA
 
-    print(f"\nDraft for {DRAFT_DATA['team_1_name']} vs {DRAFT_DATA['team_2_name']}\n")
+    print(f"\nDraft for {DRAFT_DATA['team_1_name']} vs {DRAFT_DATA['team_2_name']}")
+    print(f"Map: {DRAFT_DATA['map_name']}\n")  # ✅ Map Name on its own line
     print(f"{'Order':<6}\t{'Type':<6}\t{'Team':<25}\t{'Player':<20}\t{'Hero':<15}\t{'Score':<10}\t{'Reason'}")
     print("=" * 200)
 
     for draft_type, order in DRAFT_ORDER:
         team_name = DRAFT_DATA["team_1_name"] if order in FIRST_PICK_SLOTS else DRAFT_DATA["team_2_name"]
         team_tags = DRAFT_DATA["available_players_team_1"] if team_name == DRAFT_DATA["team_1_name"] else DRAFT_DATA["available_players_team_2"]
-
-        already_picked = len(DRAFT_DATA["team_1_picked_heroes"]) if team_name == DRAFT_DATA["team_1_name"] else len(DRAFT_DATA["team_2_picked_heroes"])
-        remaining_picks = 5 - already_picked  # Calculate dynamically
 
         if draft_type == "Ban":
             # **Call ban selection function**
@@ -166,6 +164,7 @@ def execute_draft_phase():
                     DRAFT_DATA["team_2_picked_heroes"][player] = pick
                 DRAFT_DATA["draft_log"].append((order, "Pick", team_name, player, pick, score, reason))
                 print(f"{order:<6}\tPick  \t{team_name:<25}\t{player:<20}\t{pick:<15}\t{score:<10.2f}\t{reason}")
+
 
 
 def get_enemy_top_mmr_drop(hero, enemy_player_mmr_data, picked_players):

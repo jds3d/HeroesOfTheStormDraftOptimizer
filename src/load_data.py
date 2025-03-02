@@ -3,7 +3,7 @@ import utils  # Import utils to use all encapsulated API calls
 DATA_DIR = "../data"
 
 
-def load_draft_data(our_team_tags, enemy_team_tags, first_pick_team, map_name, timeframe_type="major", timeframe="2.47"):
+def load_draft_data(our_team_tags, enemy_team_tags, first_pick_team, map_name, timeframe_type="major", timeframe="2.55"):
     """
     Loads all necessary data for the draft.
     """

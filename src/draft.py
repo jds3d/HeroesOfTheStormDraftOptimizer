@@ -123,6 +123,7 @@ def select_best_pick_with_reason(available_players, team_name):
     best_reason = best_candidate[3]
 
     available_players.remove(best_player)
+    DRAFT_DATA['available_heroes'].remove(best_pick)
 
     if best_candidate[4] in required_roles:
         DRAFT_DATA["team_roles"][team_name][best_candidate[4]] += 1  # Ensure role count updates properly
@@ -145,8 +146,8 @@ def execute_draft_phase():
         team_tags = DRAFT_DATA["available_players_team_1"] if team_name == DRAFT_DATA["team_1_name"] else DRAFT_DATA["available_players_team_2"]
 
         if draft_type == "Ban":
-            # **Call ban selection function**
-            ban, score, reason = select_best_ban_with_reason()
+            # **Call ban selection function with correct team name**
+            ban, score, reason = select_best_ban_with_reason(team_name)
 
             # **Save the ban**
             DRAFT_DATA["draft_log"].append((order, "Ban", team_name, ban, score, reason))
@@ -201,7 +202,7 @@ def get_enemy_top_mmr_drop(hero, enemy_player_mmr_data, picked_players):
     return best_player, best_mmr, mmr_drop
 
 
-def select_best_ban_with_reason():
+def select_best_ban_with_reason(team_name):
     """Selects the best hero to ban based on global draft data and returns the ban, its score, and reason."""
 
     global DRAFT_DATA
@@ -209,38 +210,74 @@ def select_best_ban_with_reason():
     best_ban = None
     best_score = -1
     best_reason = ""
+    best_player = "Unknown"
+    second_best_hero = "Unknown"
+    score_drop = 0
 
-    enemy_mmr_data = DRAFT_DATA["enemy_player_mmr_data"]
+    # **Determine the correct enemy team data based on who is banning**
+    if team_name == DRAFT_DATA["team_1_name"]:
+        enemy_mmr_data = DRAFT_DATA["enemy_player_mmr_data"]  # Banning team = Team 1, enemy = Team 2
+        enemy_picked_heroes = set(DRAFT_DATA["team_2_picked_heroes"].values())
+        enemy_players_remaining = set(DRAFT_DATA["enemy_player_mmr_data"].keys()) - set(DRAFT_DATA["team_2_picked_heroes"].keys())
+    else:
+        enemy_mmr_data = DRAFT_DATA["friendly_player_mmr_data"]  # Banning team = Team 2, enemy = Team 1
+        enemy_picked_heroes = set(DRAFT_DATA["team_1_picked_heroes"].values())
+        enemy_players_remaining = set(DRAFT_DATA["friendly_player_mmr_data"].keys()) - set(DRAFT_DATA["team_1_picked_heroes"].keys())
+
     hero_winrates_by_map = DRAFT_DATA["hero_winrates_by_map"]
     hero_matchup_data = DRAFT_DATA["hero_matchup_data"]
-    banned_heroes = DRAFT_DATA["banned_heroes"]
-    available_heroes = DRAFT_DATA["available_heroes"]
-    enemy_team_data = DRAFT_DATA["enemy_team_data"]
     map_name = DRAFT_DATA["map_name"]
+    ally_picked_heroes = set(DRAFT_DATA["team_1_picked_heroes"].values()) if team_name == DRAFT_DATA["team_1_name"] else set(DRAFT_DATA["team_2_picked_heroes"].values())
 
-    ally_picked_heroes = set(DRAFT_DATA["team_1_picked_heroes"].values())
-    enemy_picked_heroes = set(DRAFT_DATA["team_2_picked_heroes"].values())
+    # **Filter `available_heroes` to remove heroes that have already been picked**
+    available_heroes = DRAFT_DATA["available_heroes"] - enemy_picked_heroes
 
-    for player, heroes in enemy_mmr_data.items():
+    for player in enemy_players_remaining:
+        heroes = enemy_mmr_data.get(player, {})
         if "Storm League" not in heroes:
             continue  # Skip players without Storm League data
 
-        for hero, stats in heroes["Storm League"].items():
-            if hero in banned_heroes or hero not in available_heroes:
-                continue  # Skip already banned or unavailable heroes
+        player_hero_scores = []
 
+        for hero in available_heroes:
+            if hero not in heroes["Storm League"]:
+                continue  # Skip if this player never played the hero
+
+            stats = heroes["Storm League"][hero]
             hero_mmr = round(stats.get("mmr", 2000), 2)
             map_bonus = round(hero_winrates_by_map.get(map_name, {}).get(hero, {}).get("win_rate", 50) - 50, 2)
             matchup_advantage = round(utils.calculate_matchup_advantage(hero, hero_matchup_data, ally_picked_heroes, enemy_picked_heroes), 2)
-            top_player, top_mmr, mmr_drop = get_enemy_top_mmr_drop(hero, enemy_mmr_data, enemy_picked_heroes)
 
-            # **Compute ban score**
-            score = hero_mmr + (map_bonus * 10) + matchup_advantage + (mmr_drop * 2)
+            # **Compute hero score**
+            score = hero_mmr + (map_bonus * 10) + matchup_advantage
+            player_hero_scores.append((score, hero, hero_mmr, map_bonus, matchup_advantage))
 
-            if score > best_score:
-                best_score = score
-                best_ban = hero
-                best_reason = f"Score: {score:.2f}, MMR {hero_mmr}, Map Bonus {map_bonus:+.2f}%, Matchup Advantage {matchup_advantage:+.2f}, {top_player} forced to drop {round(mmr_drop, 2)} MMR"
+        # **Sort the hero scores for this player, from best to worst**
+        player_hero_scores.sort(reverse=True, key=lambda x: x[0])
+
+        if len(player_hero_scores) > 1:
+            first_choice_score, first_choice_hero, first_choice_mmr, first_choice_map_bonus, first_choice_matchup_advantage = player_hero_scores[0]
+            second_choice_score, second_choice_hero, *_ = player_hero_scores[1]  # Get second-best hero info
+        elif len(player_hero_scores) == 1:
+            first_choice_score, first_choice_hero, first_choice_mmr, first_choice_map_bonus, first_choice_matchup_advantage = player_hero_scores[0]
+            second_choice_score, second_choice_hero = 2000, "Unknown"  # Default score for second pick if only one hero exists
+        else:
+            continue  # This player has no valid picks
+
+        # **Calculate score drop if banning the best hero**
+        drop = first_choice_score - second_choice_score
+
+        if first_choice_score > best_score:
+            best_score = first_choice_score
+            best_ban = first_choice_hero
+            best_player = player
+            second_best_hero = second_choice_hero
+            score_drop = drop
+            best_reason = (
+                f"Score: {best_score:.2f}, MMR {first_choice_mmr:.2f}, "
+                f"Map Bonus {first_choice_map_bonus:+.2f}%, Matchup Advantage {first_choice_matchup_advantage:+.2f}, "
+                f"Banning {best_ban} forces {best_player} to pick {second_best_hero}, reducing score by {score_drop:.2f}"
+            )
 
     if not best_ban:
         raise ValueError("❌ No valid hero found for banning! Debug the enemy hero data and ban logic.")
@@ -250,7 +287,6 @@ def select_best_ban_with_reason():
     DRAFT_DATA["available_heroes"].discard(best_ban)
 
     return best_ban, best_score, best_reason
-
 
 
 
@@ -271,13 +307,15 @@ if __name__ == "__main__":
     # Our team - Came From Behind
     our_team_name = "Came From Behind"
     our_team_tags = ["HuckIt#1840", "topgun707#1875", "beachyman#1138", "mrhustler#1686", "mojoe#11242"]
+    # our_team_tags = ["HuckIt#1840", "topgun707#1875", "papichulo#12352", "mrhustler#1686", "mojoe#11242"]
 
     # Enemy team - Fancy Flightless Fowl
     enemy_team_name = "Fancy Flightless Fowl"
-    enemy_team_tags = ["Alfie#1948", "Silverbell#11333", "AngryPanda#12178", "GingiBoi#1791", "XxLuNaTiCxX#11820"]
+    # enemy_team_tags = ["Alfie#1948", "Silverbell#11333", "AngryPanda#12178", "GingiBoi#1791", "XxLuNaTiCxX#11820"]
+    enemy_team_tags = ["Alfie#1948", "Batmang#11255", "AngryPanda#12178", "GingiBoi#1791", "Stefwithanf#1470"] # Valkrye#11330
 
     # Map selection
-    map_name = "Towers of Doom"
+    map_name = "Garden of Terror"
 
     # Default first_pick_team to 1 for now (1 = Came From Behind, 2 = Fancy Flightless Fowl)
     first_pick_team = 1
@@ -290,7 +328,7 @@ if __name__ == "__main__":
     #     print("Invalid input. Please enter 1 or 2.")
 
     # Run the draft
-    draft_log = draft(our_team_tags, enemy_team_tags, our_team_name, enemy_team_name, first_pick_team, map_name)
+    draft_log = draft(our_team_tags, enemy_team_tags, our_team_name, enemy_team_name, first_pick_team, map_name, timeframe="2.55")
 
     # Print final draft results
     # print("\nFinal Draft Results:")

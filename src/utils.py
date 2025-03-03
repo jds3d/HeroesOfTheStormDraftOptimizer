@@ -1,8 +1,8 @@
-import os
 import pickle
 import requests
 import json
 from dotenv import load_dotenv
+import os
 import sys
 
 # Load environment variables
@@ -285,13 +285,32 @@ def get_heroes_list():
     return heroes_list_response
 
 
-def print_final_teams(draft_data):
-    """Prints final team compositions and warns if essential roles are missing."""
+def print_final_draft(draft_data, user_input_enabled):
+    """Prints the full draft summary including bans, picks, team compositions, and missing roles."""
 
-    if draft_data is None:
-        raise ValueError("❌ ERROR: draft_data is None. Ensure draft initialization is successful.")
+    if user_input_enabled:
+        if draft_data is None:
+            raise ValueError("❌ ERROR: draft_data is None. Ensure draft initialization is successful.")
 
-    print("\nFinal Team Compositions:")
+        print("\n" + "=" * 120)
+        print("🔹 FINAL DRAFT RESULTS 🔹")
+        print("=" * 120)
+
+        print(f"{'Order':<6} {'Type':<6} {'Team':<25} {'Player':<20} {'Hero':<15} {'Score':<10} {'Reason'}")
+        print("=" * 120)
+
+        for entry in draft_data["draft_log"]:
+            if entry[1] == "Ban":
+                order, draft_type, team_name, hero, score, reason = entry
+                print(f"{order:<6} {draft_type:<6} {team_name:<25} {'-':<20} {hero:<15} {score:<10.2f} {reason}")
+            else:  # Pick
+                order, draft_type, team_name, player, hero, score, reason = entry
+                print(f"{order:<6} {draft_type:<6} {team_name:<25} {player:<20} {hero:<15} {score:<10.2f} {reason}")
+
+        print("=" * 120)
+
+    # ✅ Print Final Team Compositions
+    print("\n🔹 FINAL TEAM COMPOSITIONS 🔹")
     for team_name, team_picked_heroes in [(draft_data["team_1_name"], draft_data["team_1_picked_heroes"]),
                                           (draft_data["team_2_name"], draft_data["team_2_picked_heroes"])]:
         print(f"\n{team_name}:")
@@ -311,6 +330,11 @@ def print_final_teams(draft_data):
                     team_roles[role] += 1
             print(f"  {player}: {hero} ({role_display})")
 
+        # ✅ Display missing roles
         missing_roles = [role for role in draft_data["required_roles"] if team_roles[role] == 0]
         if missing_roles:
             print(f"⚠️ WARNING: {team_name} is missing {'/'.join(missing_roles)}!")
+
+    print("=" * 120)
+
+

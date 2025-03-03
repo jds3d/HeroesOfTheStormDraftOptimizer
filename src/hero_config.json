@@ -1,5 +1,6 @@
 {
   "additional_hero_roles": {
+    "Fenix" : ["Offlaner"],
     "Illidan": ["Offlaner"],
     "Maiev": ["Offlaner"],
     "Qhira": ["Offlaner"],

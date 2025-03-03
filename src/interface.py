@@ -67,7 +67,7 @@ def select_hero_interactive(prompt, available_heroes, hero_roles, picked_heroes,
     # ✅ Show top 5 suggestions inline
     suggestion_text = ", ".join(suggestions[:5]) if suggestions else "No suggestions available"
 
-    print(f"\n{prompt} [{suggestion_text}]")
+    print(f"\n{prompt}")
 
     while True:
         choice = input("➤ Select hero (or press Enter for default): ").strip()
@@ -90,6 +90,24 @@ def select_hero_interactive(prompt, available_heroes, hero_roles, picked_heroes,
         print("\n❌ Invalid choice. Please select a valid code, hero name, or press Enter for the default.")
 
 
+def select_player_interactive(prompt, available_players):
+    """Prompts the user to select a player from the available team members."""
+
+    print(f"\n{prompt}")
+    player_options = {str(i + 1): player for i, player in enumerate(available_players)}
+
+    for num, player in player_options.items():
+        print(f"{num}: {player}")
+
+    while True:
+        choice = input("Enter the number corresponding to the player: ").strip()
+
+        if choice in player_options:
+            return player_options[choice]
+
+        print("❌ Invalid input. Please enter a valid number from the list.")
+
+
 def print_hero_list(hero_display_list):
     """Print heroes in organized columns by role."""
 
@@ -109,6 +127,7 @@ def print_hero_list(hero_display_list):
         for role in role_order:
             row.append(hero_display_list[role][i] if i < len(hero_display_list[role]) else "")
         print("".join(f"{col:<{column_width}}" for col in row))
+
 
 def print_available_heroes(available_heroes, hero_roles, picked_heroes, banned_heroes):
     """Prints the available hero list once at the start of the draft."""

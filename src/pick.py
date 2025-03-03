@@ -8,14 +8,14 @@ def execute_pick_phase(order, team_name, user_input_enabled, DRAFT_DATA):
     team_tags = DRAFT_DATA["available_players_team_1"] if team_name == DRAFT_DATA["team_1_name"] else DRAFT_DATA["available_players_team_2"]
     pick_suggestions = select_best_pick_with_reason(DRAFT_DATA, team_tags, team_name, num_suggestions=5)
 
-    if not user_input_enabled or team_name == DRAFT_DATA["team_1_name"]:
+    if not user_input_enabled:
         selected_score, selected_player, selected_hero, selected_role, reason = pick_suggestions[0][1:]
     else:
         # ✅ Provide suggestions before user input with reasons
         formatted_suggestions = [f"{p[3]} (Score: {p[1]:.2f}, Player: {p[2]})" for p in pick_suggestions]
-        print("\nSuggested Picks:", ", ".join(formatted_suggestions))
+        print("\nSuggested Picks:\n", "\n".join(formatted_suggestions))
 
-        selected_index = interface.select_hero_interactive(
+        selected_pick = interface.select_hero_interactive(
             f"Enter pick for {team_name} (suggested: {formatted_suggestions[0]}):",
             DRAFT_DATA["available_heroes"],
             DRAFT_DATA["hero_roles"],
@@ -24,23 +24,43 @@ def execute_pick_phase(order, team_name, user_input_enabled, DRAFT_DATA):
             [p[3] for p in pick_suggestions]
         )
 
-        selected_score, selected_player, selected_hero, selected_role, reason = pick_suggestions[selected_index][1:] if selected_index is not None else pick_suggestions[0][1:]
+        if selected_pick is not None and selected_pick in DRAFT_DATA["available_heroes"]:
+            # ✅ Allow the user to select which player is picking this hero
+            available_players = DRAFT_DATA["available_players_team_1"] if team_name == DRAFT_DATA["team_1_name"] else DRAFT_DATA["available_players_team_2"]
+
+            selected_player = interface.select_player_interactive(f"Who picked {selected_pick}?", available_players)
+
+            # ✅ Retrieve hero details from pick suggestions if available
+            selected_data = next((entry for entry in pick_suggestions if entry[3] == selected_pick), None)
+
+            if selected_data:
+                score_drop, selected_score, _, _, selected_role, reason = selected_data
+            else:
+                # ✅ Default values if manually picked hero is not in the suggestions
+                selected_score, score_drop, selected_role, reason = 0, 0, "Unknown", "Manual input"
+        else:
+            selected_data = pick_suggestions[0] if pick_suggestions else None
+
+            if selected_data:
+                score_drop, selected_score, selected_player, selected_pick, selected_role, reason = selected_data
+            else:
+                raise ValueError("❌ ERROR: No valid pick found in pick_suggestions.")
 
     # ✅ Update DRAFT_DATA correctly
     team_tags.remove(selected_player)
-    DRAFT_DATA["picked_heroes"].add(selected_hero)
-    DRAFT_DATA["available_heroes"].remove(selected_hero)
+    DRAFT_DATA["picked_heroes"].add(selected_pick)
+    DRAFT_DATA["available_heroes"].remove(selected_pick)
 
     if selected_role in DRAFT_DATA["required_roles"]:
         DRAFT_DATA["team_roles"][team_name][selected_role] += 1  # ✅ Update role count only when a hero is actually picked
 
     if team_name == DRAFT_DATA["team_1_name"]:
-        DRAFT_DATA["team_1_picked_heroes"][selected_player] = selected_hero
+        DRAFT_DATA["team_1_picked_heroes"][selected_player] = selected_pick
     else:
-        DRAFT_DATA["team_2_picked_heroes"][selected_player] = selected_hero
+        DRAFT_DATA["team_2_picked_heroes"][selected_player] = selected_pick
 
-    DRAFT_DATA["draft_log"].append((order, "Pick", team_name, selected_player, selected_hero, selected_score, reason))
-    print(f"{order:<6} Pick  {team_name:<25} {selected_player:<20} {selected_hero:<15} {selected_score:<10.2f} {reason}")
+    DRAFT_DATA["draft_log"].append((order, "Pick", team_name, selected_player, selected_pick, selected_score, reason))
+    print(f"{order:<6} Pick  {team_name:<25} {selected_player:<20} {selected_pick:<15} {selected_score:<10.2f} {reason}")
 
 
 def select_best_pick_with_reason(DRAFT_DATA, available_players, team_name, num_suggestions=1, mmr_threshold=2700):
@@ -96,7 +116,6 @@ def select_best_pick_with_reason(DRAFT_DATA, available_players, team_name, num_s
     # ✅ Sort by score drop first, then total score, and return `num_suggestions`
     candidates.sort(reverse=True, key=lambda x: (x[0], x[1]))
     return candidates[:num_suggestions]
-
 
 
 def get_top_pick_suggestions(DRAFT_DATA, team_name, num_suggestions=5):

@@ -5,26 +5,30 @@ import interface
 def execute_ban_phase(order, team_name, user_input_enabled, DRAFT_DATA):
     """Handles banning heroes, allowing manual input when enabled, with suggested bans and reasons."""
 
-    if not user_input_enabled or team_name == DRAFT_DATA["team_1_name"]:
+    if not user_input_enabled:
         score, ban, best_player = get_ban_suggestions(DRAFT_DATA, team_name, num_suggestions=1)[0]
         reason = f"Score: {score:.2f}, Banning {ban} forces {best_player} to choose another option."
     else:
         # ✅ Provide suggestions before user input with reasons
         ban_suggestions = get_ban_suggestions(DRAFT_DATA, team_name, num_suggestions=5)
         formatted_suggestions = [f"{b[1]} (Score: {b[0]:.2f}, Target: {b[2]})" for b in ban_suggestions]
-        print("\nSuggested Bans:", ", ".join(formatted_suggestions))
+        print("\nSuggested Bans:\n" + "\n".join(formatted_suggestions))
 
-        selected_index = interface.select_hero_interactive(
-            f"Enter enemy ban {order} (suggested: {formatted_suggestions[0]}):",
+        selected_ban = interface.select_hero_interactive(
+            f"Enter enemy ban {order} or pick any available hero:",
             DRAFT_DATA["available_heroes"],
             DRAFT_DATA["hero_roles"],
             DRAFT_DATA["picked_heroes"],
             DRAFT_DATA["banned_heroes"],
-            [b[1] for b in ban_suggestions]
+            formatted_suggestions
         )
 
-        ban = ban_suggestions[selected_index][1] if selected_index is not None else ban_suggestions[0][1]
-        score, reason = 0, "Manual input"
+        if selected_ban in DRAFT_DATA["available_heroes"]:
+            ban = selected_ban
+            score, reason = 0, "Manual input"
+        else:
+            score, ban, best_player = ban_suggestions[0]  # Default to best suggestion
+            reason = f"Score: {score:.2f}, Banning {ban} forces {best_player} to choose another option."
 
     # ✅ Move DRAFT_DATA modifications here to avoid removing multiple heroes at once
     DRAFT_DATA["banned_heroes"].add(ban)

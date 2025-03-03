@@ -17,7 +17,9 @@ FIRST_PICK_SLOTS = {1, 3, 5, 8, 9, 10, 14, 15}
 def execute_draft_phase(draft_data, user_input_enabled=True):
     """Executes the draft process, allowing optional manual input for both teams while displaying suggestions."""
 
-    interface.print_available_heroes(draft_data["available_heroes"], draft_data["hero_roles"], draft_data["picked_heroes"], draft_data["banned_heroes"])
+    if user_input_enabled:
+        interface.print_available_heroes(draft_data["available_heroes"], draft_data["hero_roles"], draft_data["picked_heroes"], draft_data["banned_heroes"])
+
     print("\n🔹 STARTING DRAFT 🔹\n" + "=" * 120 + f"\n{'Order':<6} {'Type':<6} {'Team':<25} {'Player':<20} {'Hero':<15} {'Score':<10} {'Reason'}\n" + "=" * 120)
 
     for draft_type, order in DRAFT_ORDER:

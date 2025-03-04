@@ -11,7 +11,7 @@ DRAFT_ORDER = [
     ("Pick", 12), ("Pick", 13), ("Pick", 14), ("Pick", 15), ("Pick", 16)
 ]
 
-FIRST_PICK_SLOTS = {1, 3, 5, 8, 9, 10, 14, 15}
+FIRST_PICK_SLOTS = {1, 3, 5, 8, 9, 11, 14, 15}
 
 
 def execute_draft_phase(draft_data, user_input_enabled=True):
@@ -23,7 +23,7 @@ def execute_draft_phase(draft_data, user_input_enabled=True):
     print("\n🔹 STARTING DRAFT 🔹\n" + "=" * 120 + f"\n{'Order':<6} {'Type':<6} {'Team':<25} {'Player':<20} {'Hero':<15} {'Score':<10} {'Reason'}\n" + "=" * 120)
 
     for draft_type, order in DRAFT_ORDER:
-        team_name = draft_data["team_1_name"] if order in FIRST_PICK_SLOTS else draft_data["team_2_name"]
+        team_name = draft_data["team_1_name"] if (order in FIRST_PICK_SLOTS) == (first_pick_team == 1) else draft_data["team_2_name"]
 
         if draft_type == "Ban":
             ban.execute_ban_phase(order, team_name, user_input_enabled, draft_data)
@@ -60,10 +60,15 @@ if __name__ == "__main__":
     # Enemy team - Fancy Flightless Fowl
     enemy_team_name = "Fancy Flightless Fowl"
     # enemy_team_tags = ["Alfie#1948", "Silverbell#11333", "AngryPanda#12178", "GingiBoi#1791", "XxLuNaTiCxX#11820"]
-    enemy_team_tags = ["Alfie#1948", "Batmang#11255", "AngryPanda#12178", "GingiBoi#1791", "Stefwithanf#1470"]  # Valkrye#11330
+    enemy_team_tags = ["Alfie#1948", "Batmang#11255", "Silverbell#11333", "GingiBoi#1791", "Stefwithanf#1470"]  # Valkrye#11330
+    # enemy_team_tags = ["Yarrface#1948", "Batmang#11255", "AngryPanda#12178", "GingiBoi#1791", "Stefwithanf#1470"]  # Valkrye#11330
 
     # Map selection
-    map_name = "Garden of Terror"
+    # map_name = "Garden of Terror"
+    # map_name = "Sky Temple"
+    map_name = "Battlefield of Eternity"
+    # map_name = "Volskaya Temple"
+    # map_name = "Alterac Pass"
 
     # Default first_pick_team to 1 for now (1 = Came From Behind, 2 = Fancy Flightless Fowl)
     # first_pick_team = 1
@@ -77,13 +82,3 @@ if __name__ == "__main__":
 
     # Run the draft
     draft_log = draft(our_team_tags, enemy_team_tags, our_team_name, enemy_team_name, first_pick_team, map_name, timeframe="2.55")
-
-    # Print final draft results
-    # print("\nFinal Draft Results:")
-    # for entry in draft_log:
-    #     if entry[1] == "Ban":
-    #         order, draft_type, team_name, hero, reason = entry
-    #         print(f"{draft_type} {order} ({team_name}): {hero} - {reason}")
-    #     else:  # Pick
-    #         order, draft_type, team_name, player, hero, reason = entry
-    #         print(f"{draft_type} {order} ({team_name} - {player}): {hero} - {reason}")

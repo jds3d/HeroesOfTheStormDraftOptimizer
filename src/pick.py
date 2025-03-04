@@ -9,7 +9,7 @@ def execute_pick_phase(order, team_name, user_input_enabled, DRAFT_DATA):
     pick_suggestions = select_best_pick_with_reason(DRAFT_DATA, team_tags, team_name, num_suggestions=5)
 
     if not user_input_enabled:
-        selected_score, selected_player, selected_hero, selected_role, reason = pick_suggestions[0][1:]
+        selected_score, selected_player, selected_pick, selected_role, reason = pick_suggestions[0][1:]
     else:
         # ✅ Provide suggestions before user input with reasons
         formatted_suggestions = [f"{p[3]} (Score: {p[1]:.2f}, Player: {p[2]})" for p in pick_suggestions]
@@ -64,7 +64,7 @@ def execute_pick_phase(order, team_name, user_input_enabled, DRAFT_DATA):
 
 
 def select_best_pick_with_reason(DRAFT_DATA, available_players, team_name, num_suggestions=1, mmr_threshold=2700):
-    """Selects the best `num_suggestions` hero picks using ranked evaluation without modifying DRAFT_DATA."""
+    """Selects the best `num_suggestions` hero picks while enforcing role limits."""
 
     required_roles = DRAFT_DATA["required_roles"]
     already_picked = len(DRAFT_DATA["team_1_picked_heroes"]) if team_name == DRAFT_DATA["team_1_name"] else len(DRAFT_DATA["team_2_picked_heroes"])
@@ -72,6 +72,10 @@ def select_best_pick_with_reason(DRAFT_DATA, available_players, team_name, num_s
     missing_roles = {r for r in required_roles if DRAFT_DATA["team_roles"][team_name].get(r, 0) == 0}
 
     team_mmr_data = DRAFT_DATA["team_1_player_mmr_data"] if team_name == DRAFT_DATA["team_1_name"] else DRAFT_DATA["team_2_player_mmr_data"]
+
+    # ✅ Load role limits from hero_config.json
+    role_limits = DRAFT_DATA.get("role_limits", {"Tank": 1})
+    role_counts = DRAFT_DATA["team_roles"][team_name]
 
     candidates = []
 
@@ -87,6 +91,10 @@ def select_best_pick_with_reason(DRAFT_DATA, available_players, team_name, num_s
             role_list = DRAFT_DATA["hero_roles"].get(hero, ["Unknown"])
             role = "Offlaner" if "Bruiser" in role_list else role_list[0]
 
+            # ✅ Enforce role limits from config
+            if role in role_limits and role_counts.get(role, 0) >= role_limits[role]:
+                continue
+
             # ✅ If role enforcement is needed, filter to missing roles
             enforce_roles = remaining_picks == len(missing_roles)
             if enforce_roles and role not in missing_roles:
@@ -95,14 +103,14 @@ def select_best_pick_with_reason(DRAFT_DATA, available_players, team_name, num_s
             matchup_advantage = round(utils.calculate_matchup_advantage(hero, DRAFT_DATA["hero_matchup_data"], set(DRAFT_DATA["team_1_picked_heroes"].values()), set(DRAFT_DATA["team_2_picked_heroes"].values())), 2)
 
             score = hero_mmr + (map_bonus * 10) + matchup_advantage
-            hero_scores.append((score, hero, role))
+            hero_scores.append((score, hero, role, hero_mmr))
 
         hero_scores.sort(reverse=True, key=lambda x: x[0])
 
         if not hero_scores:
             continue
 
-        best_score, best_hero, best_role = hero_scores[0]
+        best_score, best_hero, best_role, hero_mmr = hero_scores[0]
         second_best_score = hero_scores[1][0] if len(hero_scores) > 1 else 2000
         score_drop = best_score - second_best_score
 

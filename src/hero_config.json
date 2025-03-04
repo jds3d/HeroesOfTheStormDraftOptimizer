@@ -9,5 +9,6 @@
     "Varian": ["Tank", "Melee Assassin"]
   },
   "forbidden_heroes": ["Cho", "Gall"],
-  "required_roles": ["Tank", "Healer", "Offlaner"]
+  "required_roles": ["Tank", "Healer", "Offlaner"],
+  "role_limits": {"Tank": 1}
 }

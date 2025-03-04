@@ -66,7 +66,8 @@ if __name__ == "__main__":
     # Map selection
     # map_name = "Garden of Terror"
     # map_name = "Sky Temple"
-    map_name = "Battlefield of Eternity"
+    # map_name = "Battlefield of Eternity"
+    map_name = "Braxis Holdout"
     # map_name = "Volskaya Temple"
     # map_name = "Alterac Pass"
 

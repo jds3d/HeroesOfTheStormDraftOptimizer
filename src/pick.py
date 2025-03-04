@@ -103,14 +103,14 @@ def select_best_pick_with_reason(DRAFT_DATA, available_players, team_name, num_s
             matchup_advantage = round(utils.calculate_matchup_advantage(hero, DRAFT_DATA["hero_matchup_data"], set(DRAFT_DATA["team_1_picked_heroes"].values()), set(DRAFT_DATA["team_2_picked_heroes"].values())), 2)
 
             score = hero_mmr + (map_bonus * 10) + matchup_advantage
-            hero_scores.append((score, hero, role, hero_mmr))
+            hero_scores.append((score, hero, role, hero_mmr, map_bonus))
 
         hero_scores.sort(reverse=True, key=lambda x: x[0])
 
         if not hero_scores:
             continue
 
-        best_score, best_hero, best_role, hero_mmr = hero_scores[0]
+        best_score, best_hero, best_role, hero_mmr, map_bonus = hero_scores[0]
         second_best_score = hero_scores[1][0] if len(hero_scores) > 1 else 2000
         score_drop = best_score - second_best_score
 

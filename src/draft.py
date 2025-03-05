@@ -65,10 +65,10 @@ if __name__ == "__main__":
     enemy_team_name = "Points Donation Squad"
     enemy_team_tags = [
         "Emski#1375",
-        "JackBurton#1379",
+        # "JackBurton#1379",
         "RobotWizard#136992",
         "SaberMoon#11839",
-        #"fadingCheshi#1862",
+        "fadingCheshi#1862",
         "ThaDuke#11395"
      ]
 

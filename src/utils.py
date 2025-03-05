@@ -31,7 +31,7 @@ def load_from_pickle(filename):
     return None
 
 
-def load_hero_config(config_file="hero_config.json"):
+def load_hero_config(config_file="../config/hero_config.json"):
     """Loads hero role configuration from a JSON file."""
     if not os.path.exists(config_file):
         raise FileNotFoundError(f"❌ Error: Hero configuration file '{config_file}' not found.")
@@ -40,6 +40,17 @@ def load_hero_config(config_file="hero_config.json"):
         hero_config = json.load(file)
 
     return hero_config
+
+
+def load_team_config(config_file="../config/team_config.json"):
+    """Loads team names and player tags from a JSON config file."""
+    if not os.path.exists(config_file):
+        raise FileNotFoundError(f"❌ Error: Team configuration file '{config_file}' not found.")
+
+    with open(config_file, "r") as file:
+        team_config = json.load(file)
+
+    return team_config
 
 
 def get_hero_roles():
@@ -241,20 +252,22 @@ def get_hero_matchup_data(hero, timeframe_type, timeframe):
     })
 
 
-def calculate_matchup_advantage(hero, hero_matchup_data, ally_picked_heroes, enemy_picked_heroes):
-    """Calculates the matchup advantage for a hero based on ally and enemy picks."""
-
+def calculate_allied_synergy_score(hero, hero_matchup_data, ally_picked_heroes, enemy_picked_heroes):
     ally_synergy = sum(
         float(hero_matchup_data.get(hero, {}).get(ally_hero, {}).get("ally", {}).get("win_rate_as_ally", 50)) - 50
         for ally_hero in ally_picked_heroes if ally_hero in hero_matchup_data.get(hero, {})
     )
 
+    return ally_synergy
+
+
+def calculate_enemy_countering_score(hero, hero_matchup_data, ally_picked_heroes, enemy_picked_heroes):
     enemy_counter = sum(
         float(hero_matchup_data.get(hero, {}).get(enemy_hero, {}).get("enemy", {}).get("win_rate_against", 50)) - 50
         for enemy_hero in enemy_picked_heroes if enemy_hero in hero_matchup_data.get(hero, {})
     )
 
-    return ally_synergy + enemy_counter  # ✅ Combined synergy & counter advantage
+    return enemy_counter
 
 
 def fetch_match_data_for_draft(match_id):

@@ -64,6 +64,7 @@ def load_and_initialize_draft(team_1_tags, team_2_tags, team_1_name, team_2_name
         api_roles[hero] = roles
 
     required_roles = set(hero_config.get("required_roles", []))
+    role_limits = hero_config.get("role_limits", {})  # ✅ Ensure dictionary format
     role_pick_restrictions = hero_config.get("role_pick_restrictions", {})  # ✅ Ensure dictionary format
     hero_pick_restrictions = hero_config.get("hero_pick_restrictions", {})  # ✅ Ensure dictionary format
 
@@ -92,6 +93,7 @@ def load_and_initialize_draft(team_1_tags, team_2_tags, team_1_name, team_2_name
         "hero_roles": api_roles,
         "forbidden_heroes": set(hero_config.get("forbidden_heroes", [])),
         "required_roles": required_roles,
+        "role_limits": role_limits,
         "role_pick_restrictions": role_pick_restrictions,
         "hero_pick_restrictions": hero_pick_restrictions,
         "team_roles": {

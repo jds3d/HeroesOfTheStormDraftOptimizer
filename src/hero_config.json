@@ -4,11 +4,24 @@
     "Illidan": ["Offlaner"],
     "Maiev": ["Offlaner"],
     "Qhira": ["Offlaner"],
+    "Samuro": ["Offlaner"],
     "The Lost Vikings": ["Offlaner"],
     "Uther": ["Tank", "Healer"],
     "Varian": ["Tank", "Melee Assassin"]
   },
   "forbidden_heroes": ["Cho", "Gall"],
   "required_roles": ["Tank", "Healer", "Offlaner"],
-  "role_limits": {"Tank": 1}
+  "role_limits": {"Tank": 1},
+  "role_pick_restrictions": {
+    "Offlaner": "late"
+  },
+  "hero_pick_restrictions": {
+    "Genji": "middle",
+    "Medivh": "middle",
+    "Uther": "middle",
+
+    "Alexstrasza": "late",
+    "The Butcher": "late",
+    "The Lost Vikings": "late"
+  }
 }

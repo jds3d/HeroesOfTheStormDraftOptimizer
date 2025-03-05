@@ -3,6 +3,8 @@ import load_data
 import interface
 import ban
 import pick
+import os
+import sys
 
 DRAFT_ORDER = [
     ("Ban", 1), ("Ban", 2), ("Ban", 3), ("Ban", 4),
@@ -12,6 +14,7 @@ DRAFT_ORDER = [
 ]
 
 FIRST_PICK_SLOTS = {1, 3, 5, 8, 9, 11, 14, 15}
+
 
 def execute_draft_phase(draft_data, user_input_enabled=True):
     """Executes the draft process, allowing optional manual input for both teams while displaying suggestions."""
@@ -30,8 +33,7 @@ def execute_draft_phase(draft_data, user_input_enabled=True):
             pick.execute_pick_phase(order, team_name, user_input_enabled, draft_data)
 
 
-def draft(team_1_tags, team_2_tags, team_1_name, team_2_name, first_pick_team, map_name,
-          timeframe_type="major", timeframe="2.47"):
+def draft(timeframe_type="major", timeframe="2.47"):
     """Runs the draft process, allowing full automation or manual enemy input."""
 
     while True:
@@ -41,7 +43,7 @@ def draft(team_1_tags, team_2_tags, team_1_name, team_2_name, first_pick_team, m
             break
         print("❌ Invalid input. Enter 1 or 2.")
 
-    draft_data = load_data.load_and_initialize_draft(team_1_tags, team_2_tags, team_1_name, team_2_name, first_pick_team, map_name, timeframe_type, timeframe)
+    draft_data = load_data.load_and_initialize_draft(timeframe_type, timeframe)
     execute_draft_phase(draft_data, user_input_enabled)
 
     utils.print_final_draft(draft_data, user_input_enabled)
@@ -51,44 +53,24 @@ def draft(team_1_tags, team_2_tags, team_1_name, team_2_name, first_pick_team, m
 
 
 if __name__ == "__main__":
-    # Our team - Came From Behind
-    our_team_name = "Came From Behind"
-    our_team_tags = ["HuckIt#1840", "topgun707#1875", "beachyman#1138", "mrhustler#1686", "mojoe#11242"]
-    # our_team_tags = ["HuckIt#1840", "topgun707#1875", "papichulo#12352", "mrhustler#1686", "mojoe#11242"]
 
-    # Enemy team - Fancy Flightless Fowl
-    # enemy_team_name = "Fancy Flightless Fowl"
-    # enemy_team_tags = ["Alfie#1948", "Silverbell#11333", "AngryPanda#12178", "GingiBoi#1791", "XxLuNaTiCxX#11820"]
-    # enemy_team_tags = ["Alfie#1948", "Batmang#11255", "Silverbell#11333", "GingiBoi#1791", "Stefwithanf#1470"]  # Valkrye#11330
-    # enemy_team_tags = ["Yarrface#1948", "Batmang#11255", "AngryPanda#12178", "GingiBoi#1791", "Stefwithanf#1470"]  # Valkrye#11330
+    # ✅ Load team configuration
+    import team_config
+    team_1_name = team_config.team_1_name
+    team_1_tags = team_config.team_1_tags
+    team_2_name = team_config.team_2_name
+    team_2_tags = team_config.team_2_tags
+    map_name = team_config.map_name
 
-    enemy_team_name = "Points Donation Squad"
-    enemy_team_tags = [
-        "Emski#1375",
-        # "JackBurton#1379",
-        "RobotWizard#136992",
-        "SaberMoon#11839",
-        "fadingCheshi#1862",
-        "ThaDuke#11395"
-     ]
 
-    # Map selection
-    # map_name = "Garden of Terror"
-    # map_name = "Sky Temple"
-    # map_name = "Battlefield of Eternity"
-    map_name = "Braxis Holdout"
-    # map_name = "Volskaya Foundry"
-    # map_name = "Alterac Pass"
 
-    # Default first_pick_team to 1 for now (1 = Came From Behind, 2 = Fancy Flightless Fowl)
-    # first_pick_team = 1
-    # Uncomment below for interactive selection:
+    # ✅ Prompt for first pick team
     while True:
-        first_pick_team = input("Which team has first pick? (1 = Came From Behind, 2 = Fancy Flightless Fowl): ").strip()
+        first_pick_team = input(f"Which team has first pick? (1 = {team_1_name}, 2 = {team_2_name}): ").strip()
         if first_pick_team in {"1", "2"}:
             first_pick_team = int(first_pick_team)
             break
         print("Invalid input. Please enter 1 or 2.")
 
-    # Run the draft
-    draft_log = draft(our_team_tags, enemy_team_tags, our_team_name, enemy_team_name, first_pick_team, map_name, timeframe="2.55")
+    # ✅ Run the draft
+    draft_log = draft(timeframe_type="major", timeframe="2.55")

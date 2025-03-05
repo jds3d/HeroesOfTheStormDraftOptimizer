@@ -1,8 +1,7 @@
-{
-  "additional_hero_roles": {
-    "Artanis" : ["Melee Assassin"],
-    "Deathwing" : ["Ranged Assassin"],
-    "Fenix" : ["Offlaner"],
+additional_hero_roles = {
+    "Artanis": ["Melee Assassin"],
+    "Deathwing": ["Ranged Assassin"],
+    "Fenix": ["Offlaner"],
     "Illidan": ["Offlaner"],
     "Imperius": ["Tank", "Melee Assassin"],
     "Kharazim": ["Melee Assassin"],
@@ -14,16 +13,21 @@
     "Uther": ["Tank", "Healer"],
     "Varian": ["Tank", "Melee Assassin"],
     "Zeratul": ["Offlaner"]
-  },
-  "forbidden_heroes": ["Cho", "Gall"],
-  "required_roles": ["Tank", "Healer", "Offlaner"],
-  "role_limits": {
-        "Tank": 1,
-        "Healer": 1},
-  "role_pick_restrictions": {
+}
+
+forbidden_heroes = ["Cho", "Gall"]
+required_roles = ["Tank", "Healer", "Offlaner"]
+
+role_limits = {
+    "Tank": 1,
+    "Healer": 1
+}
+
+role_pick_restrictions = {
     "Offlaner": "late"
-  },
-  "hero_pick_restrictions": {
+}
+
+hero_pick_restrictions = {
     "Genji": "middle",
     "Kharazim": "middle",
     "Mal'Ganis": "middle",
@@ -32,8 +36,8 @@
     "Kel'Thuzad": "middle",
     "Uther": "middle",
     "Alexstrasza": "late",
+    "Sgt. Hammer": "late",
     "The Butcher": "late",
     "The Lost Vikings": "late",
     "Zeratul": "late"
-  }
 }

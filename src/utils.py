@@ -54,15 +54,15 @@ def load_team_config(config_file="../config/team_config.json"):
 
 
 def get_hero_roles():
+    import hero_config
     hero_roles_response = fetch_api_data("Heroes")
     if not hero_roles_response:
         raise ValueError("❌ Error: Failed to retrieve hero roles from API.")
     # Base roles from API
     api_roles = {hero: [hero_roles_response[hero]["new_role"]] for hero in hero_roles_response}
-    hero_config = load_hero_config()
-    additional_roles = hero_config.get("additional_hero_roles", {})
+
     # Override API roles with additional roles from the config
-    for hero, roles in additional_roles.items():
+    for hero, roles in hero_config.additional_hero_roles.items():
         api_roles[hero] = roles
     return api_roles
 
@@ -131,8 +131,12 @@ def get_ngs_profile_data(battle_tags):
             team_data[tag] = cached_data
             continue
 
-        print(f"Fetching NGS profile data for {tag} from API...")
-        player_data = fetch_api_data("NGS/Player/Profile", {"battletag": tag.replace("#", "%23")})
+        try:
+            print(f"Fetching NGS profile data for {tag} from API...")
+            player_data = fetch_api_data("NGS/Player/Profile", {"battletag": tag.replace("#", "%23")})
+        except:
+            print(f"No NGS profile found for {tag}.")
+            player_data = None
 
         if player_data:
             team_data[tag] = player_data

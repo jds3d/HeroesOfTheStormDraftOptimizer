@@ -28,16 +28,18 @@ role_pick_restrictions = {
 }
 
 hero_pick_restrictions = {
+    "Alexstrasza": "late",
+    "Deathwing": "late",
     "Genji": "middle",
+    "Kel'Thuzad": "middle",
+    "Kerrigan": "middle",
     "Kharazim": "middle",
     "Mal'Ganis": "middle",
     "Medivh": "middle",
     "Mephisto": "middle",
-    "Kel'Thuzad": "middle",
-    "Uther": "middle",
-    "Alexstrasza": "late",
     "Sgt. Hammer": "late",
     "The Butcher": "late",
     "The Lost Vikings": "late",
+    "Uther": "middle",
     "Zeratul": "late"
 }

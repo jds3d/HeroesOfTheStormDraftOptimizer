@@ -74,7 +74,7 @@ def select_hero_interactive(prompt, available_heroes, hero_roles, picked_heroes,
 
         # ✅ Default to top suggested pick if Enter is pressed
         if choice == "" and suggestions:
-            return suggestions[0]
+            return suggestions[0].split(" ")[0]
 
         # ✅ Match by hero code (e.g., T1, H2)
         if choice.lower() in hero_index_map:

@@ -67,6 +67,22 @@ def get_hero_roles():
     return api_roles
 
 
+def get_available_players(DRAFT_DATA, team_name):
+    team_tags = DRAFT_DATA["available_players_team_1"] if team_name == DRAFT_DATA["team_1_name"] else DRAFT_DATA["available_players_team_2"]
+    return team_tags
+
+
+def get_hero_player_pool_sizes(DRAFT_DATA, team_name, mmr_threshold=2700):
+    # ✅ Calculate hero pool size for each player (heroes with MMR > 2700)
+    available_players = get_available_players(DRAFT_DATA, team_name)
+    team_mmr_data = DRAFT_DATA["team_1_player_mmr_data"] if team_name == DRAFT_DATA["team_1_name"] else DRAFT_DATA["team_2_player_mmr_data"]
+    player_hero_pools = {
+        player: sum(1 for hero, stats in team_mmr_data.get(player, {}).get("Storm League", {}).items() if stats.get("mmr", 2000) > mmr_threshold)
+        for player in available_players
+    }
+    return player_hero_pools
+
+
 def fetch_api_data(endpoint, params=None, cache=True):
     """
     Generalized API request function for HeroesProfile.
@@ -256,7 +272,9 @@ def get_hero_matchup_data(hero, timeframe_type, timeframe):
     })
 
 
-def calculate_allied_synergy_score(hero, hero_matchup_data, ally_picked_heroes, enemy_picked_heroes):
+def calculate_allied_synergy_score(DRAFT_DATA, hero, team_name):
+    hero_matchup_data = DRAFT_DATA['hero_matchup_data']
+    ally_picked_heroes = DRAFT_DATA['team_1_picked_heroes'].values() if team_name == DRAFT_DATA['team_1_name'] else DRAFT_DATA['team_2_picked_heroes']
     ally_synergy = sum(
         float(hero_matchup_data.get(hero, {}).get(ally_hero, {}).get("ally", {}).get("win_rate_as_ally", 50)) - 50
         for ally_hero in ally_picked_heroes if ally_hero in hero_matchup_data.get(hero, {})
@@ -265,7 +283,10 @@ def calculate_allied_synergy_score(hero, hero_matchup_data, ally_picked_heroes, 
     return ally_synergy
 
 
-def calculate_enemy_countering_score(hero, hero_matchup_data, ally_picked_heroes, enemy_picked_heroes):
+def calculate_enemy_countering_score(DRAFT_DATA, hero, team_name):
+    hero_matchup_data = DRAFT_DATA['hero_matchup_data']
+    enemy_picked_heroes = DRAFT_DATA['team_2_picked_heroes'].values() if team_name == DRAFT_DATA['team_1_name'] else DRAFT_DATA['team_1_picked_heroes']
+
     enemy_counter = sum(
         float(hero_matchup_data.get(hero, {}).get(enemy_hero, {}).get("enemy", {}).get("win_rate_against", 50)) - 50
         for enemy_hero in enemy_picked_heroes if enemy_hero in hero_matchup_data.get(hero, {})

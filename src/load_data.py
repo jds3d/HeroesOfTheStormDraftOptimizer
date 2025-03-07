@@ -57,7 +57,8 @@ def load_and_initialize_draft(timeframe_type="major", timeframe="2.55"):
 
     # Fetch hero matchup data
     heroes_list = utils.get_heroes_list()
-    available_heroes = set(heroes_list)
+    forbidden_heroes = set(hero_config.forbidden_heroes)
+    available_heroes = set(heroes_list) - forbidden_heroes
 
     hero_matchup_data = {}
     for hero in heroes_list:
@@ -87,7 +88,7 @@ def load_and_initialize_draft(timeframe_type="major", timeframe="2.55"):
         "team_1_picked_heroes": {},
         "team_2_picked_heroes": {},
         "hero_roles": utils.get_hero_roles(),
-        "forbidden_heroes": set(hero_config.forbidden_heroes),
+        "forbidden_heroes": forbidden_heroes,
         "required_roles": set(hero_config.required_roles),
         "role_limits": hero_config.role_limits,
         "role_pick_restrictions": hero_config.role_pick_restrictions,

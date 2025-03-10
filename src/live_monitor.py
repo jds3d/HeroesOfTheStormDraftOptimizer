@@ -74,12 +74,12 @@ class LiveMonitor:
 
         if not self.battle_lobby_observer:
             event_handler = FileSystemEventHandler()
+
             event_handler.on_created = self.on_battle_lobby_added
 
             self.battle_lobby_observer = Observer()
             self.battle_lobby_observer.schedule(event_handler, self.battle_lobby_temp_path, recursive=True)
-            event_handler.event_handler = FileSystemEventHandler()
-            event_handler.event_handler.on_created = self.on_battle_lobby_added
+
             event_handler.event_handler.patterns = ['*.battlelobby']
             self.battle_lobby_observer.start()
             logger.debug("Started watching for new battlelobby")
@@ -91,12 +91,12 @@ class LiveMonitor:
 
         if not self.storm_save_observer:
             event_handler = FileSystemEventHandler()
+
             event_handler.on_created = self.on_storm_save_added
 
             self.storm_save_observer = Observer()
             self.storm_save_observer.schedule(event_handler, self.storm_save_path, recursive=True)
-            event_handler.event_handler = FileSystemEventHandler()
-            event_handler.event_handler.on_created = self.on_storm_save_added
+
             event_handler.event_handler.patterns = ['*.StormSave']
             self.storm_save_observer.start()
             logger.debug("Started watching for new storm save")

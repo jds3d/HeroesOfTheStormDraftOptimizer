@@ -3,8 +3,6 @@ import load_data
 import interface
 import ban
 import pick
-import os
-import sys
 
 DRAFT_ORDER = [
     ("Ban", 1), ("Ban", 2), ("Ban", 3), ("Ban", 4),
@@ -62,8 +60,6 @@ if __name__ == "__main__":
     team_2_tags = team_config.team_2_tags
     map_name = team_config.map_name
 
-
-
     # ✅ Prompt for first pick team
     while True:
         first_pick_team = input(f"Which team has first pick? (1 = {team_1_name}, 2 = {team_2_name}): ").strip()
@@ -73,4 +69,5 @@ if __name__ == "__main__":
         print("Invalid input. Please enter 1 or 2.")
 
     # ✅ Run the draft
-    draft_log = draft(timeframe_type="major", timeframe="2.55")
+    # draft_log = draft(timeframe_type="major", timeframe="2.55")
+    draft_log = draft(timeframe_type="minor", timeframe="2.55.9.93640")

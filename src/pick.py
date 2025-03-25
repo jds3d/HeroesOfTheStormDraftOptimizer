@@ -26,7 +26,37 @@ def execute_pick_phase(order, team_name, user_input_enabled, DRAFT_DATA):
             [p[3] for p in pick_suggestions]
         )
 
-        selected_score, selected_player, selected_hero, selected_role, reason = pick_suggestions[0][1:] if selected_index is not None else pick_suggestions[0][1:]
+        if selected_index in [p[3] for p in pick_suggestions]:  # If selected hero is in suggestions
+            selected_pick = next(p for p in pick_suggestions if p[3] == selected_index)
+            selected_score, selected_player, selected_hero, selected_role, reason = selected_pick[1:]
+        else:  # If user entered a different hero
+            selected_hero = selected_index  # Assign hero name directly
+            selected_player = None  # Prompt for player separately
+            selected_score, reason = None, None
+            # Get the role(s) of the manually selected hero
+            selected_roles = DRAFT_DATA["hero_roles"].get(selected_hero, ["Unknown"])
+            selected_role = selected_roles[0]  # Default to the first listed role
+
+        # If no player was auto-selected, ask the user to pick one
+        import difflib
+
+        # If no player was auto-selected, ask the user to pick one
+        if selected_player is None:
+            print(f"\nAvailable Players for {team_name}: {', '.join(team_tags)}")
+
+            while True:
+                selected_input = input(f"Which player on {team_name} is picking {selected_hero}? ").strip()
+
+                # Find all matches where the input uniquely identifies a player
+                possible_matches = [player for player in team_tags if player.lower().startswith(selected_input.lower())]
+
+                if len(possible_matches) == 1:  # If exactly one match, use it
+                    selected_player = possible_matches[0]
+                    break
+                elif len(possible_matches) > 1:  # If ambiguous, ask again
+                    print(f"Ambiguous selection. Matches: {', '.join(possible_matches)}. Please enter more characters.")
+                else:  # No matches found
+                    print("Invalid player. Please enter a valid team member or more characters.")
 
     # ✅ Update DRAFT_DATA correctly
     team_tags.remove(selected_player)
@@ -42,7 +72,8 @@ def execute_pick_phase(order, team_name, user_input_enabled, DRAFT_DATA):
         DRAFT_DATA["team_2_picked_heroes"][selected_player] = selected_hero
 
     DRAFT_DATA["draft_log"].append((order, "Pick", team_name, selected_player, selected_hero, selected_score, reason))
-    print(f"{order:<6} Pick  {team_name:<25} {selected_player:<20} {selected_hero:<15} {selected_score:<10.2f} {reason}")
+    print(f"{order:<6} Pick  {team_name:<25} {selected_player:<20} {selected_hero:<15} {selected_score if selected_score is not None else 'N/A':<10} {reason if reason else 'No reason provided'}")
+
 
 
 def select_best_pick_with_reason(DRAFT_DATA, team_name, order, num_suggestions=1, mmr_threshold=2700):

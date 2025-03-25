@@ -2,7 +2,7 @@ import time
 import pyautogui
 import pytesseract
 from PIL import ImageGrab
-
+import re
 
 def get_screen_size():
     """Returns the screen width and height."""
@@ -21,27 +21,23 @@ def capture_screen_text():
     return pytesseract.image_to_string(screen_image)
 
 
-def right_click_view_profile(player_position):
-    """Right-clicks on a player’s hexagon and selects 'View Profile'."""
+def right_click_view_profile(player_position, menu_offset):
+    """Right-clicks on a player’s hexagon and selects 'View Profile' with specific offsets."""
     pyautogui.moveTo(player_position)
     pyautogui.rightClick()
-    time.sleep(0.5)  # Wait for the menu to open
-    pyautogui.moveRel(0, 50)  # Move to 'View Profile' (assumed position)
+    time.sleep(0.2)  # Wait for the menu to open
+    pyautogui.moveRel(*menu_offset)  # Move to 'View Profile' with specific offset
     pyautogui.click()
-    time.sleep(1.5)  # Wait for profile window to open
+    time.sleep(1.0)  # Wait for profile window to open
 
 
 def extract_battletag():
     """Extracts the BattleTag from the profile window using OCR."""
     time.sleep(0.5)
-    screen_width, screen_height = get_screen_size()
-    bbox = (int(screen_width * 0.35), int(screen_height * 0.15), int(screen_width * 0.65), int(screen_height * 0.2))
-    profile_image = ImageGrab.grab(bbox=bbox)  # Adjusted to percentage-based location
-    battletag = pytesseract.image_to_string(profile_image).strip()
-    if "#" in battletag:
-        return battletag
-    return None
-
+    text = capture_screen_text()
+    matches = re.findall(r'([A-Za-z0-9]+#\d{4,6})', text)  # Extracts text matching a BattleTag format
+    print(matches[0])
+    return matches[0] if matches else None
 
 def get_battletags():
     """Extracts BattleTags for all 10 players using accurate percentage-based positions."""
@@ -51,16 +47,21 @@ def get_battletags():
         convert_percentage_to_position(0.0656, 0.4528),
         convert_percentage_to_position(0.1242, 0.6250),
         convert_percentage_to_position(0.0586, 0.7639),  # Blue team player 5 (bottom-left)
-        convert_percentage_to_position(0.9375, 0.1389),  # Red team player 1 (top-right)
-        convert_percentage_to_position(0.8398, 0.2993),
-        convert_percentage_to_position(0.9375, 0.4528),
-        convert_percentage_to_position(0.8398, 0.6250),
-        convert_percentage_to_position(0.9375, 0.7639)  # Red team player 5 (bottom-right)
+        # convert_percentage_to_position(0.9375, 0.1389),  # Red team player 1 (top-right)
+        # convert_percentage_to_position(0.8398, 0.2993),
+        # convert_percentage_to_position(0.9375, 0.4528),
+        # convert_percentage_to_position(0.8398, 0.6250),
+        # convert_percentage_to_position(0.9375, 0.7639)  # Red team player 5 (bottom-right)
+    ]
+
+    menu_offsets = [
+        (90, 170), (90, 160), (90, 160), (90, 170), (90, 10),  # Offsets for blue team
+        # (-90, 120), (-90, 160), (-90, 160), (-90, 170), (-90, -10)  # Offsets for red team
     ]
 
     battletags = []
-    for pos in player_positions:
-        right_click_view_profile(pos)
+    for pos, offset in zip(player_positions, menu_offsets):
+        right_click_view_profile(pos, offset)
         tag = extract_battletag()
         if tag:
             battletags.append(tag)

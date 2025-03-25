@@ -188,7 +188,6 @@ def get_player_hero_data(battle_tags, region=1, game_type="Storm League"):
     return team_data
 
 
-
 def get_hero_stats(hero_name, game_type="Storm League", region=1):
     """
     Fetches hero stats from HeroesProfile API.
@@ -343,7 +342,8 @@ def print_final_draft(DRAFT_DATA, user_input_enabled):
                 print(f"{order:<6} {draft_type:<6} {team_name:<25} {'-':<20} {hero:<15} {score:<10.2f} {reason}")
             else:  # Pick
                 order, draft_type, team_name, player, hero, score, reason = entry
-                print(f"{order:<6} {draft_type:<6} {team_name:<25} {player:<20} {hero:<15} {score:<10.2f} {reason}")
+                print(f"{order:<6} {draft_type:<6} {team_name:<25} {player or '-':<20} {hero or '-':<15} {score if score is not None else 'N/A':<10} {reason if reason else 'No reason provided'}")
+
 
         print("=" * 120)
 

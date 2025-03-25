@@ -99,7 +99,7 @@ def get_ban_suggestions(DRAFT_DATA, team_name, num_suggestions=1):
         candidates.append((score, score_drop, hero, player, hero_mmr, map_bonus, synergy_score, counter_score, reason))
 
     # ✅ Sort and return the top `num_suggestions`
-
+    candidates.sort(reverse=True, key=lambda x: x[1])
     ban_suggestions = candidates[:num_suggestions]
 
     return ban_suggestions
